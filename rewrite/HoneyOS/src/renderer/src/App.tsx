@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import honeyBackground from './assets/honeycomb-background.png'
 import folderIcon from './assets/folder.png'
 import notepadIcon from './assets/notepad.png'
+import micIcon from './assets/micIcon.png'
+import cameraIcon from './assets/camera.png'
 import NotepadWindow from './Notepad'
 import FileManager from './FileManager'
+import CameraComponent from './CameraComponent'
+import axios from 'axios'
 
-type Note = {
+interface Note {
   id: string
-  title: string
   content: string
+  title: string
 }
 
 function App(): JSX.Element {
@@ -18,78 +22,98 @@ function App(): JSX.Element {
   const [showNoteManager, setShowNoteManager] = useState(false)
   const [isNotepadOpen, setIsNotepadOpen] = useState(false)
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
 
-  const SpeechRecognition =
-    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const isRecognitionActiveRef = useRef(false)
 
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000)
-
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const synth = window.speechSynthesis
 
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition()
-      recognition.continuous = true
-      recognition.lang = 'en-US'
-      recognition.interimResults = false
-
-      let isActivated = false
-
-      const speak = (text: string) => {
-        const utterance = new SpeechSynthesisUtterance(text)
-        synth.speak(utterance)
-      }
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const transcript = event.results[event.results.length - 1][0].transcript
-          .trim()
-          .toLowerCase()
-        console.log('Heard:', transcript)
-
-        if (!isActivated && transcript.includes('hello honey')) {
-          isActivated = true
-          speak('What can I do for you today?')
-          return
-        }
-
-        if (isActivated) {
-          if (transcript.includes('please open notepad')) {
-            setSelectedNote(null)
-            setIsNotepadOpen(true)
-          } else if (transcript.includes('please open file manager')) {
-            setShowNoteManager(true)
-          } else if (transcript.includes('please close notepad')) {
-            setIsNotepadOpen(false)
-          } else if (transcript.includes('please close file manager')) {
-            setShowNoteManager(false)
-          } else if (transcript.includes("i'm mad") || transcript.includes('i am mad')) {
-            speak("I'm sorry for being useless. I will try to be better.")
-          }
-
-          // Reset after command
-          isActivated = false
-        }
-      }
-
-      recognition.onerror = (e) => {
-        console.error('Speech recognition error', e)
-      }
-
-      recognition.start()
-
-      return () => {
-        clearInterval(timer)
-        recognition.stop()
-      }
-    } else {
+    if (!SpeechRecognition) {
       console.warn('SpeechRecognition API not supported')
-      return () => clearInterval(timer)
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognitionRef.current = recognition
+    recognition.continuous = true
+    recognition.lang = 'en-US'
+    recognition.interimResults = false
+
+    let isActivated = false
+
+    const speak = (text: string) => {
+      const utterance = new SpeechSynthesisUtterance(text)
+      synth.speak(utterance)
+    }
+
+    recognition.onstart = () => {
+      isRecognitionActiveRef.current = true
+      console.log('Speech recognition started')
+    }
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase()
+      console.log('Heard:', transcript)
+
+      if (!isActivated && transcript.includes('hello honey')) {
+        isActivated = true
+        speak('What can I do for you today?')
+        return
+      }
+
+      if (isActivated) {
+        if (transcript.includes('please open notepad')) {
+          setSelectedNote(null)
+          setIsNotepadOpen(true)
+          speak('Opening notepad')
+        } else if (transcript.includes('please open file manager')) {
+          setShowNoteManager(true)
+          speak('Opening file manager')
+        } else if (transcript.includes('please close notepad')) {
+          setIsNotepadOpen(false)
+          speak('Closing notepad')
+        } else if (transcript.includes('please close file manager')) {
+          setShowNoteManager(false)
+          speak('Closing file manager')
+        } else if (transcript.includes("i'm mad") || transcript.includes('i am mad')) {
+          speak("I'm sorry for being useless. I will try to be better.")
+        } else {
+          speak("I didn't understand that command. Please try again.")
+        }
+
+        isActivated = false
+      }
+    }
+
+    recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error', e)
+    }
+
+    recognition.onend = () => {
+      isRecognitionActiveRef.current = false
+    }
+
+    return () => {
+      recognition.stop()
     }
   }, [])
 
-  const formatTime = () => {
+  const startListening = () => {
+    const recognition = recognitionRef.current
+    if (recognition && !isRecognitionActiveRef.current) {
+      try {
+        recognition.start()
+      } catch (error) {
+        console.error('Failed to start recognition:', error)
+      }
+    }
+  }
+
+  const formatTime = (): string => {
     let hours = time.getHours()
     const minutes = time.getMinutes()
     const ampm = hours >= 12 ? 'PM' : 'AM'
@@ -106,7 +130,7 @@ function App(): JSX.Element {
     })
   }
 
-  const openNotepadWithNote = (note: Note) => {
+  const openNotepadWithNote = (note: Note): void => {
     setSelectedNote(note)
     setIsNotepadOpen(true)
     setShowNoteManager(false)
@@ -118,48 +142,71 @@ function App(): JSX.Element {
         className="absolute inset-0 bg-cover bg-center z-0"
         style={{ backgroundImage: `url(${honeyBackground})`, backgroundSize: 'cover' }}
       >
-        {/* Time and date display */}
         <div className="flex flex-col items-center justify-center absolute top-1/4 left-1/2 transform -translate-x-1/2">
-          <h1 className="text-white text-8xl font-bold tracking-tight drop-shadow-lg">
+          <h1 className="text-white text-7xl font-bold tracking-tight drop-shadow-lg">
             {formatTime()}
           </h1>
           <p className="text-white text-3xl mt-2 font-light tracking-wide">{formatDate()}</p>
         </div>
 
-        {/* Folder icon */}
-        <div
-          className="flex flex-col items-center justify-center cursor-pointer absolute z-10 bottom-34 left-40 rounded-full hover:bg-black/20 transition-all duration-300 w-32 h-32"
-          onMouseEnter={() => setIsFolderHover(true)}
-          onMouseLeave={() => setIsFolderHover(false)}
-          onClick={() => setShowNoteManager(true)}
-        >
-          <img
-            src={folderIcon}
-            alt="Folder"
-            className={`w-12 h-12 ${isFolderHover ? 'scale-110' : ''} transition-all duration-300`}
-          />
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex space-x-8 bg-black/30 rounded-lg p-4">
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onMouseEnter={() => setIsFolderHover(true)}
+            onMouseLeave={() => setIsFolderHover(false)}
+            onClick={() => setShowNoteManager(true)}
+          >
+            <img
+              src={folderIcon}
+              alt="Folder"
+              className={`w-8 h-8 ${isFolderHover ? 'scale-110' : ''} transition-all duration-300`}
+            />
+          </div>
+
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onMouseEnter={() => setIsNotepadHover(true)}
+            onMouseLeave={() => setIsNotepadHover(false)}
+            onClick={() => {
+              setSelectedNote(null)
+              setIsNotepadOpen(true)
+            }}
+          >
+            <img
+              src={notepadIcon}
+              alt="Notepad"
+              className={`w-8 h-8 ${isNotepadHover ? 'scale-110' : ''} transition-all duration-300`}
+            />
+          </div>
+
+          {!isNotepadOpen && !showNoteManager && (
+            <div
+              className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+              onClick={startListening}
+            >
+              <img src={micIcon} alt="Mic Icon" className="w-8 h-8" />
+            </div>
+          )}
+
+          {!isNotepadOpen && !showNoteManager && (
+            <div
+              className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+              onClick={() => setIsCameraOpen(true)}
+            >
+              <img src={cameraIcon} alt="Camera Icon" className="w-full h-full object-contain" />
+            </div>
+          )}
         </div>
 
-        {/* Notepad icon */}
-        <div
-          className="flex flex-col items-center justify-center cursor-pointer absolute z-10 left-70 bottom-10 rounded-full hover:bg-black/20 transition-all duration-300 w-32 h-32"
-          onMouseEnter={() => setIsNotepadHover(true)}
-          onMouseLeave={() => setIsNotepadHover(false)}
-          onClick={() => {
-            setSelectedNote(null)
-            setNotepadOpen(true)
-          }}
-        >
-          <img
-            src={notepadIcon}
-            alt="Notepad"
-            className={`w-12 h-12 ${isNotepadHover ? 'scale-110' : ''} transition-all duration-300`}
-          />
-        </div>
-
-        {/* Windows */}
         {isNotepadOpen && (
-          <NotepadWindow onClose={() => setIsNotepadOpen(false)} noteToEdit={selectedNote} />
+          <NotepadWindow
+            onClose={() => setIsNotepadOpen(false)}
+            noteToEdit={selectedNote}
+            onOpenFileManager={() => {
+              setIsNotepadOpen(false)
+              setShowNoteManager(true)
+            }}
+          />
         )}
         {showNoteManager && (
           <FileManager
@@ -167,6 +214,7 @@ function App(): JSX.Element {
             onNoteSelect={openNotepadWithNote}
           />
         )}
+        {isCameraOpen && <CameraComponent onClose={() => setIsCameraOpen(false)} />}
       </div>
     </div>
   )

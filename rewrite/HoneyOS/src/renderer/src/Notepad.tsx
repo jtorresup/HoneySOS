@@ -12,9 +12,14 @@ interface Note {
 interface NotepadWindowProps {
   onClose: () => void
   noteToEdit?: Note | null
+  onOpenFileManager: () => void
 }
 
-function NotepadWindow({ onClose, noteToEdit }: NotepadWindowProps): JSX.Element {
+function NotepadWindow({
+  onClose,
+  noteToEdit,
+  onOpenFileManager
+}: NotepadWindowProps): JSX.Element {
   const [showMenu, setShowMenu] = useState(false)
   const [notes, setNotes] = useState<Note[]>([])
   const [openNoteIds, setOpenNoteIds] = useState<string[]>([])
@@ -64,23 +69,8 @@ function NotepadWindow({ onClose, noteToEdit }: NotepadWindowProps): JSX.Element
     setShowMenu(false)
   }
 
-  const handleOpenNote = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const content = reader.result as string
-        const newNote: Note = {
-          id: uuidv4(),
-          title: file.name,
-          content
-        }
-        setNotes([...notes, newNote])
-        setOpenNoteIds((prev) => [...prev, newNote.id])
-        setActiveNoteId(newNote.id)
-      }
-      reader.readAsText(file)
-    }
+  const handleOpenNote = () => {
+    onOpenFileManager()
     setShowMenu(false)
   }
 
@@ -103,18 +93,11 @@ function NotepadWindow({ onClose, noteToEdit }: NotepadWindowProps): JSX.Element
           {showMenu && (
             <div className="absolute left-0 top-8 bg-white border border-black rounded shadow-lg z-50 w-44">
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={handleOpenNote}
                 className="w-full flex items-center px-3 py-2 hover:bg-yellow-200"
               >
                 <FolderOpen className="w-4 h-4 mr-2" /> Open Note
               </button>
-              <input
-                type="file"
-                accept=".txt"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleOpenNote}
-              />
               <button
                 onClick={handleAddNote}
                 className="w-full flex items-center px-3 py-2 hover:bg-yellow-200"
