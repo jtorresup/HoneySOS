@@ -8,13 +8,17 @@ import memoryIcon from "./assets/memory.png"
 import replacementIcon from "./assets/replacement.png"
 import MemoryManager from "./MemoryManagement.tsx"
 import ReplacementAlgorithm from "./ReplacementAlgorithm.tsx"
+import TicTacToe from "./TicTacToe.tsx"
 
 function App() {
-  const [activeApp, setActiveApp] = useState<"desktop" | "folder" | "notepad" | "memory" | "replacement">("desktop")
+  const [activeApp, setActiveApp] = useState<"desktop" | "folder" | "notepad" | "memory" | "replacement" | "tictactoe">(
+    "desktop",
+  )
   const [isFolderHover, setIsFolderHover] = useState(false)
   const [isNotepadHover, setIsNotepadHover] = useState(false)
   const [isMemoryHover, setIsMemoryHover] = useState(false)
   const [isReplacementHover, setIsReplacementHover] = useState(false)
+  const [isTicTacToeHover, setIsTicTacToeHover] = useState(false)
 
   useEffect(() => {
     document.body.style.backgroundImage = `url(${honeyBackground})`
@@ -117,6 +121,20 @@ function App() {
               className={`w-12 h-12 ${isReplacementHover ? "scale-110" : ""} transition-all duration-300`}
             />
           </div>
+
+          {/* Tic Tac Toe Icon */}
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer absolute z-10 bottom-20 left-170 rounded-full hover:bg-black/20 transition-all duration-300 w-32 h-32"
+            onMouseEnter={() => setIsTicTacToeHover(true)}
+            onMouseLeave={() => setIsTicTacToeHover(false)}
+            onClick={() => setActiveApp("tictactoe")}
+          >
+            <img
+              src="/placeholder.svg?height=48&width=48"
+              alt="Tic Tac Toe"
+              className={`w-12 h-12 ${isTicTacToeHover ? "scale-110" : ""} transition-all duration-300`}
+            />
+          </div>
         </div>
       )}
 
@@ -124,6 +142,7 @@ function App() {
       {activeApp === "notepad" && <NotepadApp />}
       {activeApp === "memory" && <MemoryManager />}
       {activeApp === "replacement" && <ReplacementAlgorithm />}
+      {activeApp === "tictactoe" && <TicTacToe />}
     </div>
   )
 }
