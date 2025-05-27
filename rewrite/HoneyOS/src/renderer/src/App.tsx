@@ -9,6 +9,7 @@ import replacementIcon from "./assets/replacement.png"
 import MemoryManager from "./MemoryManagement.tsx"
 import ReplacementAlgorithm from "./ReplacementAlgorithm.tsx"
 import TicTacToe from "./TicTacToe.tsx"
+import ticTacToeIcon from "./assets/tic-tac-toe.png"
 
 function App() {
   const [activeApp, setActiveApp] = useState<"desktop" | "folder" | "notepad" | "memory" | "replacement" | "tictactoe">(
@@ -130,7 +131,7 @@ function App() {
             onClick={() => setActiveApp("tictactoe")}
           >
             <img
-              src="/placeholder.svg?height=48&width=48"
+              src={ticTacToeIcon || "/placeholder.svg"}
               alt="Tic Tac Toe"
               className={`w-12 h-12 ${isTicTacToeHover ? "scale-110" : ""} transition-all duration-300`}
             />
