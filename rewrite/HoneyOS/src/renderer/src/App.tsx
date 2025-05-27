@@ -13,9 +13,10 @@ import cameraIcon from './assets/camera.png'
 import NotepadWindow from './Notepad'
 import FileManager from './FileManager'
 import CameraComponent from './CameraComponent'
-import axios from 'axios'
 import PhotoGallery from './PhotoGallery'
 import galleryIcon from './assets/gallery.png'
+import TicTacToe from './TicTacToe'
+import ticTacToeIcon from './assets/tic-tac-toe.png'
 
 interface Note {
   id: string
@@ -30,6 +31,7 @@ type WindowType =
   | 'memory'
   | 'replacement'
   | 'photoGallery'
+  | 'ticTacToe'
   | null
 
 function App(): JSX.Element {
@@ -46,6 +48,8 @@ function App(): JSX.Element {
   const [isReplacementOpen, setIsReplacementOpen] = useState(false)
   const [activeWindow, setActiveWindow] = useState<WindowType>(null)
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false)
+  const [isTicTacToeOpen, setIsTicTacToeOpen] = useState(false)
+  const [isTicTacToeHover, setIsTicTacToeHover] = useState(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const isRecognitionActiveRef = useRef(false)
@@ -200,6 +204,11 @@ function App(): JSX.Element {
     setActiveWindow('photoGallery')
   }
 
+  const handleOpenTicTacToe = (): void => {
+    setIsTicTacToeOpen(true)
+    setActiveWindow('ticTacToe')
+  }
+
   // Update time every minute
   useEffect(() => {
     const timer = setInterval(() => {
@@ -294,6 +303,19 @@ function App(): JSX.Element {
           >
             <img src={galleryIcon} alt="Photo Gallery" className="w-8 h-8" />
           </div>
+
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onMouseEnter={() => setIsTicTacToeHover(true)}
+            onMouseLeave={() => setIsTicTacToeHover(false)}
+            onClick={handleOpenTicTacToe}
+          >
+            <img
+              src={ticTacToeIcon}
+              alt="Tic Tac Toe"
+              className={`w-8 h-8 ${isTicTacToeHover ? 'scale-110' : ''} transition-all duration-300`}
+            />
+          </div>
         </div>
 
         <div className="relative">
@@ -383,6 +405,19 @@ function App(): JSX.Element {
               onClick={() => handleWindowClick('photoGallery')}
             >
               <PhotoGallery onClose={() => setIsPhotoGalleryOpen(false)} />
+            </div>
+          )}
+          {isTicTacToeOpen && (
+            <div
+              className="absolute"
+              style={{
+                zIndex: getWindowZIndex('ticTacToe'),
+                width: '100%',
+                height: '100%'
+              }}
+              onClick={() => handleWindowClick('ticTacToe')}
+            >
+              <TicTacToe onClose={() => setIsTicTacToeOpen(false)} />
             </div>
           )}
         </div>
