@@ -1,13 +1,21 @@
+'use client'
+
 import { useState, useEffect, useRef } from 'react'
 import honeyBackground from './assets/honeycomb-background.png'
 import folderIcon from './assets/folder.png'
 import notepadIcon from './assets/notepad.png'
+import memoryIcon from './assets/memory.png'
+import replacementIcon from './assets/replacement.png'
+import MemoryManager from './MemoryManagement'
+import ReplacementAlgorithm from './ReplacementAlgorithm'
 import micIcon from './assets/micIcon.png'
 import cameraIcon from './assets/camera.png'
 import NotepadWindow from './Notepad'
 import FileManager from './FileManager'
 import CameraComponent from './CameraComponent'
 import axios from 'axios'
+import PhotoGallery from './PhotoGallery'
+import galleryIcon from './assets/gallery.png'
 
 interface Note {
   id: string
@@ -15,14 +23,29 @@ interface Note {
   title: string
 }
 
+type WindowType =
+  | 'notepad'
+  | 'fileManager'
+  | 'camera'
+  | 'memory'
+  | 'replacement'
+  | 'photoGallery'
+  | null
+
 function App(): JSX.Element {
   const [time, setTime] = useState(new Date())
   const [isFolderHover, setIsFolderHover] = useState(false)
   const [isNotepadHover, setIsNotepadHover] = useState(false)
+  const [isMemoryHover, setIsMemoryHover] = useState(false)
+  const [isReplacementHover, setIsReplacementHover] = useState(false)
   const [showNoteManager, setShowNoteManager] = useState(false)
   const [isNotepadOpen, setIsNotepadOpen] = useState(false)
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const [isMemoryOpen, setIsMemoryOpen] = useState(false)
+  const [isReplacementOpen, setIsReplacementOpen] = useState(false)
+  const [activeWindow, setActiveWindow] = useState<WindowType>(null)
+  const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const isRecognitionActiveRef = useRef(false)
@@ -130,11 +153,60 @@ function App(): JSX.Element {
     })
   }
 
+  const handleWindowClick = (windowType: WindowType): void => {
+    setActiveWindow(windowType)
+  }
+
+  const getWindowZIndex = (windowType: WindowType): number => {
+    return activeWindow === windowType ? 50 : 20
+  }
+
+  // Add handlers for opening windows
+  const handleOpenNotepad = (): void => {
+    setSelectedNote(null)
+    setIsNotepadOpen(true)
+    setActiveWindow('notepad')
+  }
+
+  const handleOpenFileManager = (): void => {
+    setShowNoteManager(true)
+    setActiveWindow('fileManager')
+  }
+
+  const handleOpenCamera = (): void => {
+    setIsCameraOpen(true)
+    setActiveWindow('camera')
+  }
+
+  const handleOpenMemory = (): void => {
+    setIsMemoryOpen(true)
+    setActiveWindow('memory')
+  }
+
+  const handleOpenReplacement = (): void => {
+    setIsReplacementOpen(true)
+    setActiveWindow('replacement')
+  }
+
   const openNotepadWithNote = (note: Note): void => {
     setSelectedNote(note)
     setIsNotepadOpen(true)
     setShowNoteManager(false)
+    setActiveWindow('notepad')
   }
+
+  const handleOpenPhotoGallery = (): void => {
+    setIsPhotoGalleryOpen(true)
+    setActiveWindow('photoGallery')
+  }
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date())
+    }, 60000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-amber-500 salsa-regular">
@@ -154,7 +226,7 @@ function App(): JSX.Element {
             className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
             onMouseEnter={() => setIsFolderHover(true)}
             onMouseLeave={() => setIsFolderHover(false)}
-            onClick={() => setShowNoteManager(true)}
+            onClick={handleOpenFileManager}
           >
             <img
               src={folderIcon}
@@ -167,10 +239,7 @@ function App(): JSX.Element {
             className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
             onMouseEnter={() => setIsNotepadHover(true)}
             onMouseLeave={() => setIsNotepadHover(false)}
-            onClick={() => {
-              setSelectedNote(null)
-              setIsNotepadOpen(true)
-            }}
+            onClick={handleOpenNotepad}
           >
             <img
               src={notepadIcon}
@@ -179,42 +248,144 @@ function App(): JSX.Element {
             />
           </div>
 
-          {!isNotepadOpen && !showNoteManager && (
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onMouseEnter={() => setIsMemoryHover(true)}
+            onMouseLeave={() => setIsMemoryHover(false)}
+            onClick={handleOpenMemory}
+          >
+            <img
+              src={memoryIcon}
+              alt="Memory Management"
+              className={`w-8 h-8 ${isMemoryHover ? 'scale-110' : ''} transition-all duration-300`}
+            />
+          </div>
+
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onMouseEnter={() => setIsReplacementHover(true)}
+            onMouseLeave={() => setIsReplacementHover(false)}
+            onClick={handleOpenReplacement}
+          >
+            <img
+              src={replacementIcon}
+              alt="Replacement Algorithm"
+              className={`w-8 h-8 ${isReplacementHover ? 'scale-110' : ''} transition-all duration-300`}
+            />
+          </div>
+
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onClick={startListening}
+          >
+            <img src={micIcon} alt="Mic Icon" className="w-8 h-8" />
+          </div>
+
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onClick={handleOpenCamera}
+          >
+            <img src={cameraIcon} alt="Camera Icon" className="w-full h-full object-contain" />
+          </div>
+
+          <div
+            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
+            onClick={handleOpenPhotoGallery}
+          >
+            <img src={galleryIcon} alt="Photo Gallery" className="w-8 h-8" />
+          </div>
+        </div>
+
+        <div className="relative">
+          {isNotepadOpen && (
             <div
-              className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
-              onClick={startListening}
+              className="absolute"
+              style={{
+                zIndex: getWindowZIndex('notepad'),
+                width: '100%',
+                height: '100%'
+              }}
+              onClick={() => handleWindowClick('notepad')}
             >
-              <img src={micIcon} alt="Mic Icon" className="w-8 h-8" />
+              <NotepadWindow
+                onClose={() => setIsNotepadOpen(false)}
+                noteToEdit={selectedNote}
+                onOpenFileManager={() => {
+                  setIsNotepadOpen(false)
+                  handleOpenFileManager()
+                }}
+              />
             </div>
           )}
-
-          {!isNotepadOpen && !showNoteManager && (
+          {showNoteManager && (
             <div
-              className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
-              onClick={() => setIsCameraOpen(true)}
+              className="absolute"
+              style={{
+                zIndex: getWindowZIndex('fileManager'),
+                width: '100%',
+                height: '100%'
+              }}
+              onClick={() => handleWindowClick('fileManager')}
             >
-              <img src={cameraIcon} alt="Camera Icon" className="w-full h-full object-contain" />
+              <FileManager
+                onClose={() => setShowNoteManager(false)}
+                onNoteSelect={openNotepadWithNote}
+              />
+            </div>
+          )}
+          {isCameraOpen && (
+            <div
+              className="absolute"
+              style={{
+                zIndex: getWindowZIndex('camera'),
+                width: '100%',
+                height: '100%'
+              }}
+              onClick={() => handleWindowClick('camera')}
+            >
+              <CameraComponent onClose={() => setIsCameraOpen(false)} />
+            </div>
+          )}
+          {isMemoryOpen && (
+            <div
+              className="absolute"
+              style={{
+                zIndex: getWindowZIndex('memory'),
+                width: '100%',
+                height: '100%'
+              }}
+              onClick={() => handleWindowClick('memory')}
+            >
+              <MemoryManager onClose={() => setIsMemoryOpen(false)} />
+            </div>
+          )}
+          {isReplacementOpen && (
+            <div
+              className="absolute"
+              style={{
+                zIndex: getWindowZIndex('replacement'),
+                width: '100%',
+                height: '100%'
+              }}
+              onClick={() => handleWindowClick('replacement')}
+            >
+              <ReplacementAlgorithm onClose={() => setIsReplacementOpen(false)} />
+            </div>
+          )}
+          {isPhotoGalleryOpen && (
+            <div
+              className="absolute"
+              style={{
+                zIndex: getWindowZIndex('photoGallery'),
+                width: '100%',
+                height: '100%'
+              }}
+              onClick={() => handleWindowClick('photoGallery')}
+            >
+              <PhotoGallery onClose={() => setIsPhotoGalleryOpen(false)} />
             </div>
           )}
         </div>
-
-        {isNotepadOpen && (
-          <NotepadWindow
-            onClose={() => setIsNotepadOpen(false)}
-            noteToEdit={selectedNote}
-            onOpenFileManager={() => {
-              setIsNotepadOpen(false)
-              setShowNoteManager(true)
-            }}
-          />
-        )}
-        {showNoteManager && (
-          <FileManager
-            onClose={() => setShowNoteManager(false)}
-            onNoteSelect={openNotepadWithNote}
-          />
-        )}
-        {isCameraOpen && <CameraComponent onClose={() => setIsCameraOpen(false)} />}
       </div>
     </div>
   )

@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Maximize2, Minimize2, Folder, FileText, Plus, Trash2 } from 'lucide-react'
+import { v4 as uuidv4 } from 'uuid'
 
 interface Note {
   id: string
@@ -13,10 +15,15 @@ interface FileManagerProps {
 
 function FileManager({ onClose, onNoteSelect }: FileManagerProps): JSX.Element {
   const [notes, setNotes] = useState<Note[]>([])
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null)
+  const windowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const storedNotes = localStorage.getItem('bee-notepad-notes')
-    console.log('Stored notes:', storedNotes)
     if (storedNotes) {
       try {
         const parsed = JSON.parse(storedNotes)
@@ -27,33 +34,184 @@ function FileManager({ onClose, onNoteSelect }: FileManagerProps): JSX.Element {
     }
   }, [])
 
-  const handleSelectNote = (note: Note) => {
+  const handleMouseDown = (e: React.MouseEvent): void => {
+    if (e.target instanceof HTMLElement && e.target.closest('.window-header')) {
+      setIsDragging(true)
+      const rect = windowRef.current?.getBoundingClientRect()
+      if (rect) {
+        setDragOffset({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        })
+      }
+    }
+  }
+
+  const handleMouseMove = (e: MouseEvent): void => {
+    if (isDragging && windowRef.current) {
+      const rect = windowRef.current.getBoundingClientRect()
+      const maxX = window.innerWidth - rect.width
+      const maxY = window.innerHeight - rect.height
+
+      const newX = Math.min(Math.max(0, e.clientX - dragOffset.x), maxX)
+      const newY = Math.min(Math.max(0, e.clientY - dragOffset.y), maxY)
+
+      setPosition({ x: newX, y: newY })
+    }
+  }
+
+  const handleMouseUp = (): void => {
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  const handleSelectNote = (note: Note): void => {
     onNoteSelect(note)
-    onClose() // Optionally auto-close FileManager after selection
+    onClose()
+  }
+
+  const handleNewNote = (): void => {
+    const newNote: Note = {
+      id: uuidv4(),
+      title: `File${notes.length + 1}.txt`,
+      content: ''
+    }
+    onNoteSelect(newNote)
+    onClose()
+  }
+
+  const handleDeleteNote = (note: Note, e: React.MouseEvent): void => {
+    e.stopPropagation()
+    setNoteToDelete(note)
+  }
+
+  const confirmDelete = (): void => {
+    if (noteToDelete) {
+      const updatedNotes = notes.filter((note) => note.id !== noteToDelete.id)
+      setNotes(updatedNotes)
+      localStorage.setItem('bee-notepad-notes', JSON.stringify(updatedNotes))
+      setNoteToDelete(null)
+    }
+  }
+
+  const cancelDelete = (): void => {
+    setNoteToDelete(null)
   }
 
   return (
-    <div className="absolute inset-0 bg-yellow-100 z-20 p-4 overflow-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Your Notes</h2>
-        <button onClick={onClose} className="text-xl hover:text-red-600">
-          ✕
-        </button>
+    <div
+      ref={windowRef}
+      className={`fixed bg-yellow-100 z-20 flex flex-col rounded-lg shadow-2xl border-2 border-black transition-all duration-200 ${
+        isExpanded ? 'inset-4' : 'w-1/2 h-2/3'
+      }`}
+      style={{
+        transform: isExpanded ? 'none' : `translate(${position.x}px, ${position.y}px)`,
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      <div className="window-header flex justify-between items-center p-2 bg-yellow-500 border-b-2 border-black rounded-t-lg cursor-grab active:cursor-grabbing">
+        <div className="flex items-center gap-2">
+          <Folder className="w-6 h-6 text-black" />
+          <h2 className="text-2xl font-bold text-black">Note Manager</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-black hover:text-yellow-200 transition-colors"
+          >
+            {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+          </button>
+          <button onClick={onClose} className="text-black hover:text-red-600 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
-      {notes.length === 0 ? (
-        <p>No notes found.</p>
-      ) : (
-        <ul className="space-y-4">
-          {notes.map((note) => (
-            <li
-              key={note.id}
-              className="p-4 bg-white rounded shadow border cursor-pointer hover:bg-yellow-200"
-              onClick={() => handleSelectNote(note)}
+
+      <div className="flex-grow overflow-y-auto p-4">
+        <div className="bg-yellow-300 border-2 border-black rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold">Your Notes</h3>
+            <button
+              onClick={handleNewNote}
+              className="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded-lg border-2 border-black flex items-center gap-2 transition-colors"
             >
-              <strong>{note.title}</strong>
-            </li>
-          ))}
-        </ul>
+              <Plus className="w-4 h-4" />
+              New Note
+            </button>
+          </div>
+
+          {notes.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-lg border-2 border-black">
+              <FileText className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p className="text-gray-600">No notes found. Create your first note!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {notes.map((note) => (
+                <div
+                  key={note.id}
+                  className="bg-white rounded-lg border-2 border-black p-4 hover:bg-yellow-200 cursor-pointer transition-colors group relative min-h-[120px]"
+                  onClick={() => handleSelectNote(note)}
+                >
+                  <div className="flex items-start gap-3 h-full">
+                    <FileText className="w-6 h-6 text-yellow-500 group-hover:text-yellow-600 flex-shrink-0" />
+                    <div className="flex-grow min-w-0">
+                      <h4 className="font-bold text-lg mb-1 group-hover:text-yellow-800 truncate">
+                        {note.title}
+                      </h4>
+                      <p className="text-gray-600 text-sm line-clamp-2 break-words">
+                        {note.content}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteNote(note, e)}
+                      className="absolute top-2 right-2 p-1 rounded-full hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      {noteToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 border-2 border-black">
+            <h3 className="text-xl font-bold mb-4">Delete Note</h3>
+            <p className="mb-6">
+              Are you sure you want to delete "{noteToDelete.title}"? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 rounded-lg border-2 border-black hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white border-2 border-black hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

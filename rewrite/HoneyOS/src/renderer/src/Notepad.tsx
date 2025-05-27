@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { X, Settings, Plus, Trash2, Save, FolderOpen } from 'lucide-react'
+import { X, Settings, Plus, Trash2, Save, FolderOpen, Maximize2, Minimize2 } from 'lucide-react'
 import beeImage from './assets/bee.png'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -24,12 +24,14 @@ function NotepadWindow({
   const [notes, setNotes] = useState<Note[]>([])
   const [openNoteIds, setOpenNoteIds] = useState<string[]>([])
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const windowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const savedNotes = localStorage.getItem('bee-notepad-notes')
-    console.log('Saved notes:', savedNotes)
-
     const parsed: Note[] = savedNotes ? JSON.parse(savedNotes) : []
 
     if (noteToEdit) {
@@ -42,11 +44,52 @@ function NotepadWindow({
     }
 
     setNotes(parsed)
-  }, []) // <--- only run on mount, NOT every time noteToEdit changes
+  }, [noteToEdit])
 
-  const handleAddNote = () => {
+  const handleMouseDown = (e: React.MouseEvent): void => {
+    if (e.target instanceof HTMLElement && e.target.closest('.window-header')) {
+      setIsDragging(true)
+      const rect = windowRef.current?.getBoundingClientRect()
+      if (rect) {
+        setDragOffset({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        })
+      }
+    }
+  }
+
+  const handleMouseMove = (e: MouseEvent): void => {
+    if (isDragging && windowRef.current) {
+      const rect = windowRef.current.getBoundingClientRect()
+      const maxX = window.innerWidth - rect.width
+      const maxY = window.innerHeight - rect.height
+
+      const newX = Math.min(Math.max(0, e.clientX - dragOffset.x), maxX)
+      const newY = Math.min(Math.max(0, e.clientY - dragOffset.y), maxY)
+
+      setPosition({ x: newX, y: newY })
+    }
+  }
+
+  const handleMouseUp = (): void => {
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  const handleAddNote = (): void => {
     const newNote: Note = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       title: `File${notes.length + 1}.txt`,
       content: ''
     }
@@ -56,7 +99,7 @@ function NotepadWindow({
     setShowMenu(false)
   }
 
-  const handleDeleteNote = () => {
+  const handleDeleteNote = (): void => {
     if (!activeNoteId) return
     const filtered = notes.filter((note) => note.id !== activeNoteId)
     setNotes(filtered)
@@ -65,16 +108,17 @@ function NotepadWindow({
     setShowMenu(false)
   }
 
-  const handleSaveNote = () => {
+  const handleSaveNote = (): void => {
+    localStorage.setItem('bee-notepad-notes', JSON.stringify(notes))
     setShowMenu(false)
   }
 
-  const handleOpenNote = () => {
+  const handleOpenNote = (): void => {
     onOpenFileManager()
     setShowMenu(false)
   }
 
-  const updateActiveNoteContent = (newContent: string) => {
+  const updateActiveNoteContent = (newContent: string): void => {
     setNotes((prevNotes) =>
       prevNotes.map((note) => (note.id === activeNoteId ? { ...note, content: newContent } : note))
     )
@@ -83,8 +127,18 @@ function NotepadWindow({
   const activeNote = notes.find((note) => note.id === activeNoteId)
 
   return (
-    <div className="absolute inset-0 bg-yellow-400 text-black font-sans z-20 flex flex-col">
-      <div className="flex items-center justify-between p-2 bg-yellow-500 border-b-2 border-black relative">
+    <div
+      ref={windowRef}
+      className={`fixed bg-yellow-400 text-black font-sans z-20 flex flex-col rounded-lg shadow-2xl border-2 border-black transition-all duration-200 ${
+        isExpanded ? 'inset-4' : 'w-3/4 h-3/4'
+      }`}
+      style={{
+        transform: isExpanded ? 'none' : `translate(${position.x}px, ${position.y}px)`,
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      <div className="window-header flex items-center justify-between p-2 bg-yellow-500 border-b-2 border-black relative rounded-t-lg cursor-grab active:cursor-grabbing">
         <div className="relative">
           <Settings
             className="w-5 h-5 text-black cursor-pointer"
@@ -121,21 +175,23 @@ function NotepadWindow({
           )}
         </div>
 
-        <img
-          src={beeImage}
-          alt="Bee"
-          className="absolute right-4 top-0 w-20 h-20 object-contain pointer-events-none"
-        />
-
-        <button
-          onClick={() => {
-            localStorage.setItem('bee-notepad-notes', JSON.stringify(notes))
-            onClose()
-          }}
-          className="text-black hover:text-red-600 px-3 text-xl font-bold"
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-black hover:text-yellow-200"
+          >
+            {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={() => {
+              handleSaveNote()
+              onClose()
+            }}
+            className="text-black hover:text-red-600 px-3 text-xl font-bold"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div className="flex space-x-2 bg-yellow-300 border-b-2 border-black px-4 py-2 overflow-x-auto">
