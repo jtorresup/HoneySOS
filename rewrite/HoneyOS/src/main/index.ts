@@ -23,7 +23,7 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
 
   // Open your app in Google Chrome
-  openInGoogleChrome('http://localhost:5174/')
+  openInGoogleChrome('http://localhost:5173/')
 
   // Watch for developer shortcuts (like F12)
   app.on('browser-window-created', (_, window) => {

@@ -405,6 +405,33 @@ export default function TicTacToe({ onClose }: TicTacToeProps): JSX.Element {
     }
   }, [isDragging])
 
+  // Add event listener for voice commands
+  useEffect(() => {
+    const handleVoiceCommand = (event: CustomEvent) => {
+      const { action, mode } = event.detail
+
+      switch (action) {
+        case 'setGameMode':
+          if (mode === 'human' || mode === 'computer') {
+            setGameMode(mode)
+            resetGame()
+          }
+          break
+        case 'resetGame':
+          resetGame()
+          break
+        case 'resetStats':
+          resetStats()
+          break
+      }
+    }
+
+    window.addEventListener('tictactoe-action', handleVoiceCommand as EventListener)
+    return () => {
+      window.removeEventListener('tictactoe-action', handleVoiceCommand as EventListener)
+    }
+  }, [])
+
   return (
     <div
       ref={windowRef}
