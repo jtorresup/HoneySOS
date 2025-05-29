@@ -425,7 +425,7 @@ function App(): JSX.Element {
           detail: { action: 'setGameMode', mode: 'human' }
         })
         window.dispatchEvent(event)
-        respond('Switching to human vs human mode')
+        respond('Switching to human versus human mode')
         return
       }
       if (command.includes('please play against computer')) {
@@ -434,7 +434,7 @@ function App(): JSX.Element {
           detail: { action: 'setGameMode', mode: 'computer' }
         })
         window.dispatchEvent(event)
-        respond('Switching to human vs computer mode')
+        respond('Switching to human versus computer mode')
         return
       }
       if (command.includes('please start new game')) {
