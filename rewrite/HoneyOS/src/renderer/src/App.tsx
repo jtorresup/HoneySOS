@@ -1,22 +1,23 @@
-'use client'
+"use client"
 
-import { useState, useEffect, useRef } from 'react'
-import honeyBackground from './assets/honeycomb-background.png'
-import folderIcon from './assets/folder.png'
-import notepadIcon from './assets/notepad.png'
-import memoryIcon from './assets/memory.png'
-import replacementIcon from './assets/replacement.png'
-import MemoryManager from './MemoryManagement'
-import ReplacementAlgorithm from './ReplacementAlgorithm'
-import micIcon from './assets/micIcon.png'
-import cameraIcon from './assets/camera.png'
-import NotepadWindow from './Notepad'
-import FileManager from './FileManager'
-import CameraComponent from './CameraComponent'
-import PhotoGallery from './PhotoGallery'
-import galleryIcon from './assets/gallery.png'
-import TicTacToe from './TicTacToe'
-import ticTacToeIcon from './assets/tic-tac-toe.png'
+import { useState, useEffect, useRef } from "react"
+import LoadingScreen from "./loading-screen"
+import honeyBackground from "./assets/honeycomb-background.png"
+import folderIcon from "./assets/folder.png"
+import notepadIcon from "./assets/notepad.png"
+import memoryIcon from "./assets/memory.png"
+import replacementIcon from "./assets/replacement.png"
+import MemoryManager from "./MemoryManagement"
+import ReplacementAlgorithm from "./ReplacementAlgorithm"
+import micIcon from "./assets/micIcon.png"
+import cameraIcon from "./assets/camera.png"
+import NotepadWindow from "./Notepad"
+import FileManager from "./FileManager"
+import CameraComponent from "./CameraComponent"
+import PhotoGallery from "./PhotoGallery"
+import galleryIcon from "./assets/gallery.png"
+import TicTacToe from "./TicTacToe"
+import ticTacToeIcon from "./assets/tic-tac-toe.png"
 
 interface Note {
   id: string
@@ -24,17 +25,10 @@ interface Note {
   title: string
 }
 
-type WindowType =
-  | 'notepad'
-  | 'fileManager'
-  | 'camera'
-  | 'memory'
-  | 'replacement'
-  | 'photoGallery'
-  | 'ticTacToe'
-  | null
+type WindowType = "notepad" | "fileManager" | "camera" | "memory" | "replacement" | "photoGallery" | "ticTacToe" | null
 
 function App(): JSX.Element {
+  const [isLoading, setIsLoading] = useState(true)
   const [time, setTime] = useState(new Date())
   const [isFolderHover, setIsFolderHover] = useState(false)
   const [isNotepadHover, setIsNotepadHover] = useState(false)
@@ -55,19 +49,18 @@ function App(): JSX.Element {
   const isRecognitionActiveRef = useRef(false)
 
   useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const synth = window.speechSynthesis
 
     if (!SpeechRecognition) {
-      console.warn('SpeechRecognition API not supported')
+      console.warn("SpeechRecognition API not supported")
       return
     }
 
     const recognition = new SpeechRecognition()
     recognitionRef.current = recognition
     recognition.continuous = true
-    recognition.lang = 'en-US'
+    recognition.lang = "en-US"
     recognition.interimResults = false
 
     let isActivated = false
@@ -79,34 +72,34 @@ function App(): JSX.Element {
 
     recognition.onstart = () => {
       isRecognitionActiveRef.current = true
-      console.log('Speech recognition started')
+      console.log("Speech recognition started")
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase()
-      console.log('Heard:', transcript)
+      console.log("Heard:", transcript)
 
-      if (!isActivated && transcript.includes('hello honey')) {
+      if (!isActivated && transcript.includes("hello honey")) {
         isActivated = true
-        speak('What can I do for you today?')
+        speak("What can I do for you today?")
         return
       }
 
       if (isActivated) {
-        if (transcript.includes('please open notepad')) {
+        if (transcript.includes("please open notepad")) {
           setSelectedNote(null)
           setIsNotepadOpen(true)
-          speak('Opening notepad')
-        } else if (transcript.includes('please open file manager')) {
+          speak("Opening notepad")
+        } else if (transcript.includes("please open file manager")) {
           setShowNoteManager(true)
-          speak('Opening file manager')
-        } else if (transcript.includes('please close notepad')) {
+          speak("Opening file manager")
+        } else if (transcript.includes("please close notepad")) {
           setIsNotepadOpen(false)
-          speak('Closing notepad')
-        } else if (transcript.includes('please close file manager')) {
+          speak("Closing notepad")
+        } else if (transcript.includes("please close file manager")) {
           setShowNoteManager(false)
-          speak('Closing file manager')
-        } else if (transcript.includes("i'm mad") || transcript.includes('i am mad')) {
+          speak("Closing file manager")
+        } else if (transcript.includes("i'm mad") || transcript.includes("i am mad")) {
           speak("I'm sorry for being useless. I will try to be better.")
         } else {
           speak("I didn't understand that command. Please try again.")
@@ -117,7 +110,7 @@ function App(): JSX.Element {
     }
 
     recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
-      console.error('Speech recognition error', e)
+      console.error("Speech recognition error", e)
     }
 
     recognition.onend = () => {
@@ -129,13 +122,26 @@ function App(): JSX.Element {
     }
   }, [])
 
+  // Handle loading completion
+  const handleLoadingComplete = () => {
+    setIsLoading(false)
+  }
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date())
+    }, 60000)
+    return () => clearInterval(timer)
+  }, [])
+
   const startListening = () => {
     const recognition = recognitionRef.current
     if (recognition && !isRecognitionActiveRef.current) {
       try {
         recognition.start()
       } catch (error) {
-        console.error('Failed to start recognition:', error)
+        console.error("Failed to start recognition:", error)
       }
     }
   }
@@ -143,17 +149,17 @@ function App(): JSX.Element {
   const formatTime = (): string => {
     let hours = time.getHours()
     const minutes = time.getMinutes()
-    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const ampm = hours >= 12 ? "PM" : "AM"
     hours = hours % 12 || 12
     const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes
     return `${hours}:${formattedMinutes} ${ampm}`
   }
 
   const formatDate = (): string => {
-    return time.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
+    return time.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
     })
   }
 
@@ -169,64 +175,59 @@ function App(): JSX.Element {
   const handleOpenNotepad = (): void => {
     setSelectedNote(null)
     setIsNotepadOpen(true)
-    setActiveWindow('notepad')
+    setActiveWindow("notepad")
   }
 
   const handleOpenFileManager = (): void => {
     setShowNoteManager(true)
-    setActiveWindow('fileManager')
+    setActiveWindow("fileManager")
   }
 
   const handleOpenCamera = (): void => {
     setIsCameraOpen(true)
-    setActiveWindow('camera')
+    setActiveWindow("camera")
   }
 
   const handleOpenMemory = (): void => {
     setIsMemoryOpen(true)
-    setActiveWindow('memory')
+    setActiveWindow("memory")
   }
 
   const handleOpenReplacement = (): void => {
     setIsReplacementOpen(true)
-    setActiveWindow('replacement')
+    setActiveWindow("replacement")
   }
 
   const openNotepadWithNote = (note: Note): void => {
     setSelectedNote(note)
     setIsNotepadOpen(true)
     setShowNoteManager(false)
-    setActiveWindow('notepad')
+    setActiveWindow("notepad")
   }
 
   const handleOpenPhotoGallery = (): void => {
     setIsPhotoGalleryOpen(true)
-    setActiveWindow('photoGallery')
+    setActiveWindow("photoGallery")
   }
 
   const handleOpenTicTacToe = (): void => {
     setIsTicTacToeOpen(true)
-    setActiveWindow('ticTacToe')
+    setActiveWindow("ticTacToe")
   }
 
-  // Update time every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date())
-    }, 60000)
-    return () => clearInterval(timer)
-  }, [])
+  // Show loading screen first
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />
+  }
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-amber-500 salsa-regular">
       <div
         className="absolute inset-0 bg-cover bg-center z-0"
-        style={{ backgroundImage: `url(${honeyBackground})`, backgroundSize: 'cover' }}
+        style={{ backgroundImage: `url(${honeyBackground})`, backgroundSize: "cover" }}
       >
         <div className="flex flex-col items-center justify-center absolute top-1/4 left-1/2 transform -translate-x-1/2">
-          <h1 className="text-white text-7xl font-bold tracking-tight drop-shadow-lg">
-            {formatTime()}
-          </h1>
+          <h1 className="text-white text-7xl font-bold tracking-tight drop-shadow-lg">{formatTime()}</h1>
           <p className="text-white text-3xl mt-2 font-light tracking-wide">{formatDate()}</p>
         </div>
 
@@ -238,9 +239,9 @@ function App(): JSX.Element {
             onClick={handleOpenFileManager}
           >
             <img
-              src={folderIcon}
+              src={folderIcon || "/placeholder.svg"}
               alt="Folder"
-              className={`w-8 h-8 ${isFolderHover ? 'scale-110' : ''} transition-all duration-300`}
+              className={`w-8 h-8 ${isFolderHover ? "scale-110" : ""} transition-all duration-300`}
             />
           </div>
 
@@ -251,9 +252,9 @@ function App(): JSX.Element {
             onClick={handleOpenNotepad}
           >
             <img
-              src={notepadIcon}
+              src={notepadIcon || "/placeholder.svg"}
               alt="Notepad"
-              className={`w-8 h-8 ${isNotepadHover ? 'scale-110' : ''} transition-all duration-300`}
+              className={`w-8 h-8 ${isNotepadHover ? "scale-110" : ""} transition-all duration-300`}
             />
           </div>
 
@@ -264,9 +265,9 @@ function App(): JSX.Element {
             onClick={handleOpenMemory}
           >
             <img
-              src={memoryIcon}
+              src={memoryIcon || "/placeholder.svg"}
               alt="Memory Management"
-              className={`w-8 h-8 ${isMemoryHover ? 'scale-110' : ''} transition-all duration-300`}
+              className={`w-8 h-8 ${isMemoryHover ? "scale-110" : ""} transition-all duration-300`}
             />
           </div>
 
@@ -277,9 +278,9 @@ function App(): JSX.Element {
             onClick={handleOpenReplacement}
           >
             <img
-              src={replacementIcon}
+              src={replacementIcon || "/placeholder.svg"}
               alt="Replacement Algorithm"
-              className={`w-8 h-8 ${isReplacementHover ? 'scale-110' : ''} transition-all duration-300`}
+              className={`w-8 h-8 ${isReplacementHover ? "scale-110" : ""} transition-all duration-300`}
             />
           </div>
 
@@ -287,21 +288,21 @@ function App(): JSX.Element {
             className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
             onClick={startListening}
           >
-            <img src={micIcon} alt="Mic Icon" className="w-8 h-8" />
+            <img src={micIcon || "/placeholder.svg"} alt="Mic Icon" className="w-8 h-8" />
           </div>
 
           <div
             className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
             onClick={handleOpenCamera}
           >
-            <img src={cameraIcon} alt="Camera Icon" className="w-full h-full object-contain" />
+            <img src={cameraIcon || "/placeholder.svg"} alt="Camera Icon" className="w-full h-full object-contain" />
           </div>
 
           <div
             className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
             onClick={handleOpenPhotoGallery}
           >
-            <img src={galleryIcon} alt="Photo Gallery" className="w-8 h-8" />
+            <img src={galleryIcon || "/placeholder.svg"} alt="Photo Gallery" className="w-8 h-8" />
           </div>
 
           <div
@@ -311,9 +312,9 @@ function App(): JSX.Element {
             onClick={handleOpenTicTacToe}
           >
             <img
-              src={ticTacToeIcon}
+              src={ticTacToeIcon || "/placeholder.svg"}
               alt="Tic Tac Toe"
-              className={`w-8 h-8 ${isTicTacToeHover ? 'scale-110' : ''} transition-all duration-300`}
+              className={`w-8 h-8 ${isTicTacToeHover ? "scale-110" : ""} transition-all duration-300`}
             />
           </div>
         </div>
@@ -323,11 +324,11 @@ function App(): JSX.Element {
             <div
               className="absolute"
               style={{
-                zIndex: getWindowZIndex('notepad'),
-                width: '100%',
-                height: '100%'
+                zIndex: getWindowZIndex("notepad"),
+                width: "100%",
+                height: "100%",
               }}
-              onClick={() => handleWindowClick('notepad')}
+              onClick={() => handleWindowClick("notepad")}
             >
               <NotepadWindow
                 onClose={() => setIsNotepadOpen(false)}
@@ -343,27 +344,24 @@ function App(): JSX.Element {
             <div
               className="absolute"
               style={{
-                zIndex: getWindowZIndex('fileManager'),
-                width: '100%',
-                height: '100%'
+                zIndex: getWindowZIndex("fileManager"),
+                width: "100%",
+                height: "100%",
               }}
-              onClick={() => handleWindowClick('fileManager')}
+              onClick={() => handleWindowClick("fileManager")}
             >
-              <FileManager
-                onClose={() => setShowNoteManager(false)}
-                onNoteSelect={openNotepadWithNote}
-              />
+              <FileManager onClose={() => setShowNoteManager(false)} onNoteSelect={openNotepadWithNote} />
             </div>
           )}
           {isCameraOpen && (
             <div
               className="absolute"
               style={{
-                zIndex: getWindowZIndex('camera'),
-                width: '100%',
-                height: '100%'
+                zIndex: getWindowZIndex("camera"),
+                width: "100%",
+                height: "100%",
               }}
-              onClick={() => handleWindowClick('camera')}
+              onClick={() => handleWindowClick("camera")}
             >
               <CameraComponent onClose={() => setIsCameraOpen(false)} />
             </div>
@@ -372,11 +370,11 @@ function App(): JSX.Element {
             <div
               className="absolute"
               style={{
-                zIndex: getWindowZIndex('memory'),
-                width: '100%',
-                height: '100%'
+                zIndex: getWindowZIndex("memory"),
+                width: "100%",
+                height: "100%",
               }}
-              onClick={() => handleWindowClick('memory')}
+              onClick={() => handleWindowClick("memory")}
             >
               <MemoryManager onClose={() => setIsMemoryOpen(false)} />
             </div>
@@ -385,11 +383,11 @@ function App(): JSX.Element {
             <div
               className="absolute"
               style={{
-                zIndex: getWindowZIndex('replacement'),
-                width: '100%',
-                height: '100%'
+                zIndex: getWindowZIndex("replacement"),
+                width: "100%",
+                height: "100%",
               }}
-              onClick={() => handleWindowClick('replacement')}
+              onClick={() => handleWindowClick("replacement")}
             >
               <ReplacementAlgorithm onClose={() => setIsReplacementOpen(false)} />
             </div>
@@ -398,11 +396,11 @@ function App(): JSX.Element {
             <div
               className="absolute"
               style={{
-                zIndex: getWindowZIndex('photoGallery'),
-                width: '100%',
-                height: '100%'
+                zIndex: getWindowZIndex("photoGallery"),
+                width: "100%",
+                height: "100%",
               }}
-              onClick={() => handleWindowClick('photoGallery')}
+              onClick={() => handleWindowClick("photoGallery")}
             >
               <PhotoGallery onClose={() => setIsPhotoGalleryOpen(false)} />
             </div>
@@ -411,11 +409,11 @@ function App(): JSX.Element {
             <div
               className="absolute"
               style={{
-                zIndex: getWindowZIndex('ticTacToe'),
-                width: '100%',
-                height: '100%'
+                zIndex: getWindowZIndex("ticTacToe"),
+                width: "100%",
+                height: "100%",
               }}
-              onClick={() => handleWindowClick('ticTacToe')}
+              onClick={() => handleWindowClick("ticTacToe")}
             >
               <TicTacToe onClose={() => setIsTicTacToeOpen(false)} />
             </div>
