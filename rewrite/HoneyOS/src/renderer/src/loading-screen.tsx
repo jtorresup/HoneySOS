@@ -1,73 +1,134 @@
-'use client'
+"use client"
 
-import { useState, useEffect, useRef } from 'react'
-import honeyBackground from './assets/honeycomb-background.png'
-import beeImage from './assets/bee.png'
+import { useState, useEffect, useRef } from "react"
+import honeyBackground from "./assets/yellowbg.jpg"
+import beeImage from "./assets/bee.png"
 
 interface LoadingScreenProps {
   onLoadingComplete: () => void
 }
 
 export default function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
-  const [displayText, setDisplayText] = useState('')
+  const [displayText, setDisplayText] = useState("")
   const [isTypingComplete, setIsTypingComplete] = useState(false)
   const [beePosition, setBeePosition] = useState({ x: 50, y: 50 })
   const [beeDirection, setBeeDirection] = useState({ x: 2, y: 1 })
   const [isStarted, setIsStarted] = useState(false)
-  const welcomeText = 'Welcome Honey Bun'
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [currentStatus, setCurrentStatus] = useState(0)
+
+  const welcomeText = "Welcome Honey Bun"
   const typewriterRef = useRef<NodeJS.Timeout>()
   const beeAnimationRef = useRef<NodeJS.Timeout>()
-  const speechRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const speechRef = useRef<boolean>(false) // Track if speech has been spoken
+
+  const statusMessages = [
+    "Initializing Honey OS...",
+    "Loading voice recognition...",
+    "Preparing workspace...",
+    "Starting applications...",
+  ]
 
   // Start the loading sequence
   const handleStart = () => {
-    console.log('Starting Honey OS')
+    console.log("Starting Honey OS")
     setIsStarted(true)
+    speechRef.current = false // Reset speech tracking
   }
 
-  // Speak welcome message when started
+  // Consolidated speech and loading logic
   useEffect(() => {
-    if (!isStarted) return
+    if (!isStarted || speechRef.current) return
 
-    console.log('Starting welcome message')
+    console.log("Starting welcome sequence")
+    speechRef.current = true // Mark speech as started
+
     const synth = window.speechSynthesis
 
-    // Small delay to ensure speech synthesis is ready
-    const timer = setTimeout(() => {
-      console.log('Speaking welcome message')
-      const utterance = new SpeechSynthesisUtterance('Welcome Honey Bun')
-      utterance.lang = 'en-US'
-      utterance.rate = 0.3
-      utterance.pitch = 1.9
+    // Start typewriter effect immediately
+    let currentIndex = 0
+    const typeNextCharacter = () => {
+      if (currentIndex < welcomeText.length) {
+        setDisplayText(welcomeText.slice(0, currentIndex + 1))
+        currentIndex++
+        typewriterRef.current = setTimeout(typeNextCharacter, 120)
+      } else {
+        setIsTypingComplete(true)
+      }
+    }
+
+    // Start typing after a short delay
+    const startTyping = setTimeout(typeNextCharacter, 800)
+
+    // Speak welcome message
+    const speakWelcome = setTimeout(() => {
+      console.log("Speaking welcome message")
+      const utterance = new SpeechSynthesisUtterance("Welcome Honey Bun")
+      utterance.lang = "en-US"
+      utterance.rate = 0.8
+      utterance.pitch = 1.2
       utterance.volume = 0.8
 
-      // Force completion after welcome message
       utterance.onend = () => {
-        console.log('Welcome message completed')
-        if (!isTypingComplete) {
-          setIsTypingComplete(true)
+        console.log("Welcome message completed, speaking final message")
+        // Speak final message after welcome
+        const finalUtterance = new SpeechSynthesisUtterance("Enjoy Honey OS")
+        finalUtterance.lang = "en-US"
+        finalUtterance.rate = 0.9
+        finalUtterance.pitch = 1.1
+
+        finalUtterance.onend = () => {
+          console.log("All speech completed")
+          setTimeout(() => onLoadingComplete(), 1000)
+        }
+
+        finalUtterance.onerror = () => {
+          console.error("Speech synthesis error on final message")
+          setTimeout(() => onLoadingComplete(), 1000)
+        }
+
+        try {
+          synth.speak(finalUtterance)
+        } catch (error) {
+          console.error("Failed to speak final message:", error)
+          setTimeout(() => onLoadingComplete(), 1000)
         }
       }
 
-      synth.speak(utterance)
-    }, 300)
+      utterance.onerror = () => {
+        console.error("Speech synthesis error on welcome message")
+        setTimeout(() => onLoadingComplete(), 3000)
+      }
 
-    // Safety timeout to ensure loading completes
+      try {
+        synth.speak(utterance)
+      } catch (error) {
+        console.error("Failed to speak welcome message:", error)
+        setTimeout(() => onLoadingComplete(), 3000)
+      }
+    }, 1200)
+
+    // Safety timeout
     const safetyTimer = setTimeout(() => {
-      console.log('Safety timeout triggered')
+      console.log("Safety timeout triggered")
       onLoadingComplete()
-    }, 5000)
+    }, 8000)
 
     return () => {
-      clearTimeout(timer)
+      clearTimeout(startTyping)
+      clearTimeout(speakWelcome)
       clearTimeout(safetyTimer)
+      if (typewriterRef.current) {
+        clearTimeout(typewriterRef.current)
+      }
       synth.cancel()
     }
-  }, [isStarted, isTypingComplete])
+  }, [isStarted, onLoadingComplete])
 
   // Bee flying animation
   useEffect(() => {
     if (!isStarted) return
+
     const animateBee = () => {
       setBeePosition((prev) => {
         let newX = prev.x + beeDirection.x
@@ -75,14 +136,14 @@ export default function LoadingScreen({ onLoadingComplete }: LoadingScreenProps)
         let newDirectionX = beeDirection.x
         let newDirectionY = beeDirection.y
 
-        // Bounce off walls
-        if (newX <= 0 || newX >= 90) {
-          newDirectionX = -newDirectionX
-          newX = Math.max(0, Math.min(90, newX))
+        // Bounce off walls with some randomness
+        if (newX <= 5 || newX >= 85) {
+          newDirectionX = -newDirectionX + (Math.random() - 0.5) * 0.5
+          newX = Math.max(5, Math.min(85, newX))
         }
-        if (newY <= 0 || newY >= 80) {
-          newDirectionY = -newDirectionY
-          newY = Math.max(0, Math.min(80, newY))
+        if (newY <= 5 || newY >= 75) {
+          newDirectionY = -newDirectionY + (Math.random() - 0.5) * 0.5
+          newY = Math.max(5, Math.min(75, newY))
         }
 
         setBeeDirection({ x: newDirectionX, y: newDirectionY })
@@ -90,7 +151,7 @@ export default function LoadingScreen({ onLoadingComplete }: LoadingScreenProps)
       })
     }
 
-    beeAnimationRef.current = setInterval(animateBee, 100)
+    beeAnimationRef.current = setInterval(animateBee, 80)
     return () => {
       if (beeAnimationRef.current) {
         clearInterval(beeAnimationRef.current)
@@ -98,92 +159,47 @@ export default function LoadingScreen({ onLoadingComplete }: LoadingScreenProps)
     }
   }, [isStarted, beeDirection])
 
-  // Typewriter effect
+  // Progress and status animation
   useEffect(() => {
     if (!isStarted) return
-    let currentIndex = 0
 
-    const typeNextCharacter = () => {
-      if (currentIndex < welcomeText.length) {
-        setDisplayText(welcomeText.slice(0, currentIndex + 1))
-        currentIndex++
-        typewriterRef.current = setTimeout(typeNextCharacter, 150)
-      } else {
-        setIsTypingComplete(true)
-      }
-    }
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        const newProgress = Math.min(prev + Math.random() * 15, 100)
 
-    // Start typing after a short delay
-    const startDelay = setTimeout(typeNextCharacter, 1000)
+        // Update status based on progress
+        if (newProgress > 25 && currentStatus < 1) setCurrentStatus(1)
+        if (newProgress > 50 && currentStatus < 2) setCurrentStatus(2)
+        if (newProgress > 75 && currentStatus < 3) setCurrentStatus(3)
 
-    return () => {
-      clearTimeout(startDelay)
-      if (typewriterRef.current) {
-        clearTimeout(typewriterRef.current)
-      }
-    }
-  }, [isStarted])
+        return newProgress
+      })
+    }, 200)
 
-  // Final voice message and completion
-  useEffect(() => {
-    if (!isStarted) return
-    console.log('Typing complete, preparing final message')
-    if (isTypingComplete) {
-      const timer = setTimeout(() => {
-        console.log('Speaking final message')
-        const synth = window.speechSynthesis
-        const utterance = new SpeechSynthesisUtterance('Enjoy Honey OS')
-        utterance.lang = 'en-US'
-        utterance.rate = 0.9
-        utterance.pitch = 1.1
-
-        // Only complete loading after the final message is spoken
-        utterance.onend = () => {
-          console.log('Final message completed')
-          onLoadingComplete()
-        }
-
-        // Add error handling
-        utterance.onerror = () => {
-          console.error('Speech synthesis error on final message')
-          onLoadingComplete() // Complete loading even if speech fails
-        }
-
-        try {
-          synth.speak(utterance)
-        } catch (error) {
-          console.error('Failed to speak final message:', error)
-          onLoadingComplete() // Complete loading even if speech fails
-        }
-      }, 1500)
-
-      return () => clearTimeout(timer)
-    }
-  }, [isStarted, isTypingComplete, onLoadingComplete])
+    return () => clearInterval(progressInterval)
+  }, [isStarted, currentStatus])
 
   return (
     <div
       className="fixed inset-0 bg-cover bg-center flex items-center justify-center overflow-hidden"
       style={{
         backgroundImage: `url(${honeyBackground})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center'
+        backgroundSize: "cover",
+        backgroundPosition: "center",
       }}
     >
-      {/* Overlay for better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 via-yellow-400/20 to-orange-500/20" />
-
-      {/* Animated background particles */}
+      {/* Floating particles */}
       <div className="absolute inset-0">
-        {[...Array(20)].map((_, i) => (
+        {[...Array(15)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-2 h-2 bg-white/30 rounded-full animate-pulse"
+            className="absolute w-3 h-3 bg-white/40 rounded-full animate-pulse"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${2 + Math.random() * 2}s`
+              animationDelay: `${Math.random() * 3}s`,
+              animationDuration: `${2 + Math.random() * 3}s`,
+              transform: `scale(${0.5 + Math.random() * 0.5})`,
             }}
           />
         ))}
@@ -192,11 +208,16 @@ export default function LoadingScreen({ onLoadingComplete }: LoadingScreenProps)
       {/* Start Button */}
       {!isStarted && (
         <div className="text-center z-10 relative">
+          <div className="mb-6">
+            <div className="text-6xl mb-4">🍯</div>
+            <h1 className="text-4xl font-bold text-amber-800 mb-2">Honey Bun OS</h1>
+            <p className="text-amber-700 mb-8">Your sweet digital experience awaits</p>
+          </div>
           <button
             onClick={handleStart}
-            className="px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white text-2xl font-bold rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300"
+            className="px-12 py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white text-2xl font-bold rounded-full shadow-xl transform hover:scale-105 transition-all duration-300 border-2 border-amber-400"
           >
-            Start Honey OS
+            🐝 Start Honey OS
           </button>
         </div>
       )}
@@ -204,103 +225,88 @@ export default function LoadingScreen({ onLoadingComplete }: LoadingScreenProps)
       {/* Loading Content */}
       {isStarted && (
         <>
-          {/* Flying bee */}
+          {/* Flying bee with trail effect */}
           <div
-            className="absolute transition-all duration-100 ease-linear z-20"
+            className="absolute transition-all duration-75 ease-linear z-20"
             style={{
               left: `${beePosition.x}%`,
               top: `${beePosition.y}%`,
-              transform: `translate(-50%, -50%) ${beeDirection.x > 0 ? 'scaleX(1)' : 'scaleX(-1)'}`
+              transform: `translate(-50%, -50%) ${beeDirection.x > 0 ? "scaleX(1)" : "scaleX(-1)"}`,
             }}
           >
-            <img
-              src={beeImage || '/placeholder.svg'}
-              alt="Flying Bee"
-              className="w-12 h-12 object-contain"
-              style={{
-                filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.5))'
-              }}
-            />
-          </div>
-
-          {/* Main content */}
-          <div className="text-center z-10 relative">
-            {/* Loading dots */}
-            <div className="flex justify-center space-x-2 mb-8">
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-3 h-3 bg-white/80 rounded-full animate-bounce shadow-lg"
-                  style={{
-                    animationDelay: `${i * 0.2}s`,
-                    animationDuration: '1s'
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Welcome text */}
-            <div className="mb-8">
-              <div
-                className="text-6xl font-bold text-white drop-shadow-2xl font-mono mx-auto"
-                style={{
-                  width: '600px',
-                  height: '80px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-start',
-                  textAlign: 'left'
-                }}
-              >
-                <span>{displayText}</span>
-                <span className="animate-pulse text-yellow-300">|</span>
+            <div className="relative">
+              {/* Bee trail */}
+              <div className="absolute inset-0 animate-ping">
+                <img src={beeImage || "/placeholder.svg"} alt="" className="w-12 h-12 object-contain opacity-30" />
               </div>
-            </div>
-
-            {/* Status messages */}
-            <div
-              className="text-white/90 text-sm font-mono bg-black/20 rounded-lg backdrop-blur-sm mx-auto"
-              style={{
-                width: '400px',
-                height: '120px',
-                padding: '16px'
-              }}
-            >
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <span>Initializing Honey OS...</span>
-                  <span className="text-green-300">✓</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Loading voice recognition...</span>
-                  <span className="text-green-300">✓</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Preparing workspace...</span>
-                  <span className="text-green-300">✓</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Starting applications...</span>
-                  <span className={isTypingComplete ? 'text-green-300' : 'text-yellow-300'}>
-                    {isTypingComplete ? '✓' : '...'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div
-              className="mt-8 h-2 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm mx-auto"
-              style={{ width: '320px' }}
-            >
-              <div
-                className="h-full bg-gradient-to-r from-white to-yellow-200 rounded-full transition-all duration-1000 ease-out shadow-lg"
+              {/* Main bee */}
+              <img
+                src={beeImage || "/placeholder.svg"}
+                alt="Flying Bee"
+                className="w-12 h-12 object-contain relative z-10"
                 style={{
-                  width: isTypingComplete
-                    ? '100%'
-                    : `${(displayText.length / welcomeText.length) * 100}%`
+                  filter: "drop-shadow(0 0 8px rgba(255, 255, 255, 0.5))",
                 }}
               />
+            </div>
+          </div>
+
+          {/* Main content with fixed width container */}
+          <div className="text-center z-10 relative w-[500px] mx-auto">
+            {/* Honey pot loading animation */}
+            <div className="mb-8">
+              <div className="text-8xl mb-4 animate-bounce">🍯</div>
+              <div className="flex justify-center space-x-3">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-4 h-4 bg-amber-500 rounded-full animate-bounce shadow-lg"
+                    style={{
+                      animationDelay: `${i * 0.3}s`,
+                      animationDuration: "1.2s",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Welcome text with fixed dimensions */}
+            <div className="mb-8 h-24 flex items-center justify-center">
+              <div className="text-6xl font-bold text-amber-800 drop-shadow-lg font-mono w-full">
+                <span className="bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent">
+                  {displayText}
+                </span>
+                <span className="animate-pulse text-amber-500 ml-1">|</span>
+              </div>
+            </div>
+
+            {/* Enhanced status panel with fixed width */}
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-amber-200 mb-6 w-full">
+              <div className="space-y-3">
+                {statusMessages.map((message, index) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <span className="text-amber-800 font-medium">{message}</span>
+                    <span className={`text-xl ${index <= currentStatus ? "text-green-500" : "text-amber-300"}`}>
+                      {index <= currentStatus ? "✓" : "⏳"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Enhanced progress bar with fixed width */}
+            <div className="relative w-full">
+              <div className="h-4 bg-amber-200 rounded-full overflow-hidden shadow-inner">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 rounded-full transition-all duration-500 ease-out shadow-lg relative"
+                  style={{ width: `${Math.max(loadingProgress, (displayText.length / welcomeText.length) * 100)}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/30 animate-pulse rounded-full" />
+                </div>
+              </div>
+              <div className="text-center mt-2 text-amber-700 font-semibold">
+                {Math.round(Math.max(loadingProgress, (displayText.length / welcomeText.length) * 100))}%
+              </div>
             </div>
           </div>
         </>
