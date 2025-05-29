@@ -20,6 +20,8 @@ function FileManager({ onClose, onNoteSelect }: FileManagerProps): JSX.Element {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null)
+  const [showNewNoteDialog, setShowNewNoteDialog] = useState(false)
+  const [newNoteTitle, setNewNoteTitle] = useState('')
   const windowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -81,13 +83,26 @@ function FileManager({ onClose, onNoteSelect }: FileManagerProps): JSX.Element {
   }
 
   const handleNewNote = (): void => {
-    const newNote: Note = {
-      id: uuidv4(),
-      title: `File${notes.length + 1}.txt`,
-      content: ''
+    setShowNewNoteDialog(true)
+  }
+
+  const confirmNewNote = (): void => {
+    if (newNoteTitle.trim()) {
+      const newNote: Note = {
+        id: uuidv4(),
+        title: newNoteTitle.trim(),
+        content: ''
+      }
+      onNoteSelect(newNote)
+      onClose()
     }
-    onNoteSelect(newNote)
-    onClose()
+    setShowNewNoteDialog(false)
+    setNewNoteTitle('')
+  }
+
+  const cancelNewNote = (): void => {
+    setShowNewNoteDialog(false)
+    setNewNoteTitle('')
   }
 
   const handleDeleteNote = (note: Note, e: React.MouseEvent): void => {
@@ -107,6 +122,53 @@ function FileManager({ onClose, onNoteSelect }: FileManagerProps): JSX.Element {
   const cancelDelete = (): void => {
     setNoteToDelete(null)
   }
+
+  useEffect(() => {
+    const handleFileManagerAction = (event: CustomEvent): void => {
+      const { action, title } = event.detail
+      let noteToOpen: Note | undefined
+      let noteToDelete: Note | undefined
+
+      switch (action) {
+        case 'createNote':
+          handleNewNote()
+          break
+        case 'openNote':
+          noteToOpen = notes.find(
+            (note) =>
+              note.title.toLowerCase() === title.toLowerCase() ||
+              note.title.toLowerCase().includes(title.toLowerCase())
+          )
+          if (noteToOpen) {
+            handleSelectNote(noteToOpen)
+          } else {
+            // Create a new note with the specified title if it doesn't exist
+            const newNote: Note = {
+              id: uuidv4(),
+              title: title,
+              content: ''
+            }
+            handleSelectNote(newNote)
+          }
+          break
+        case 'deleteNote':
+          noteToDelete = notes.find(
+            (note) =>
+              note.title.toLowerCase() === title.toLowerCase() ||
+              note.title.toLowerCase().includes(title.toLowerCase())
+          )
+          if (noteToDelete) {
+            setNoteToDelete(noteToDelete)
+          }
+          break
+      }
+    }
+
+    window.addEventListener('file-manager-action', handleFileManagerAction as EventListener)
+    return (): void => {
+      window.removeEventListener('file-manager-action', handleFileManagerAction as EventListener)
+    }
+  }, [notes, handleNewNote, handleSelectNote])
 
   return (
     <div
@@ -188,13 +250,52 @@ function FileManager({ onClose, onNoteSelect }: FileManagerProps): JSX.Element {
         </div>
       </div>
 
+      {/* New Note Dialog */}
+      {showNewNoteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 border-2 border-black">
+            <h3 className="text-xl font-bold mb-4">Create New Note</h3>
+            <div className="mb-4">
+              <label htmlFor="noteTitle" className="block text-sm font-medium text-gray-700 mb-2">
+                Note Title
+              </label>
+              <input
+                type="text"
+                id="noteTitle"
+                value={newNoteTitle}
+                onChange={(e) => setNewNoteTitle(e.target.value)}
+                className="w-full px-3 py-2 border-2 border-black rounded-lg focus:outline-none focus:border-yellow-500"
+                placeholder="Enter note title"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={cancelNewNote}
+                className="px-4 py-2 rounded-lg border-2 border-black hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmNewNote}
+                className="px-4 py-2 rounded-lg bg-yellow-500 text-black border-2 border-black hover:bg-yellow-600 transition-colors"
+                disabled={!newNoteTitle.trim()}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Dialog */}
       {noteToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 border-2 border-black">
             <h3 className="text-xl font-bold mb-4">Delete Note</h3>
             <p className="mb-6">
-              Are you sure you want to delete "{noteToDelete.title}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{noteToDelete.title}&quot;? This action cannot
+              be undone.
             </p>
             <div className="flex justify-end gap-4">
               <button

@@ -449,6 +449,41 @@ export default function ReplacementAlgorithm({ onClose }: ReplacementAlgorithmPr
     }
   }, [isDragging])
 
+  // Add event listener for voice commands
+  useEffect(() => {
+    const handleReplacementAction = (event: CustomEvent) => {
+      const { action, algorithm } = event.detail
+      switch (action) {
+        case 'setAlgorithm':
+          if (algorithm) {
+            setSelectedAlgorithm(algorithm as ReplacementAlgorithm)
+          }
+          break
+        case 'generateReference':
+          generateReferenceString()
+          break
+        case 'startSimulation':
+          if (!isRunning) {
+            toggleSimulation()
+          }
+          break
+        case 'stopSimulation':
+          if (isRunning) {
+            toggleSimulation()
+          }
+          break
+        case 'resetSimulation':
+          resetSimulation()
+          break
+      }
+    }
+
+    window.addEventListener('replacement-action', handleReplacementAction as EventListener)
+    return () => {
+      window.removeEventListener('replacement-action', handleReplacementAction as EventListener)
+    }
+  }, [isRunning])
+
   return (
     <div
       ref={windowRef}

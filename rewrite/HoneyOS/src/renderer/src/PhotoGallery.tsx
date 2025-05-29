@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, Minimize2, Maximize2 } from 'lucide-react'
 
 interface Photo {
@@ -18,29 +18,17 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ onClose }): JSX.Element => 
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
+  const windowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const savedPhotos = localStorage.getItem('bee-camera-photos')
     if (savedPhotos) {
       try {
         const parsedPhotos = JSON.parse(savedPhotos)
-        console.log('Parsed photos:', parsedPhotos)
-
-        // Filter out photos without URLs and sort by timestamp
         const validPhotos = parsedPhotos
-          .filter((photo: Photo) => {
-            const hasUrl = Boolean(photo.url)
-            if (!hasUrl) {
-              console.log('Filtered out photo without URL:', photo)
-            }
-            return hasUrl
-          })
+          .filter((photo: Photo) => Boolean(photo.url))
           .sort((a: Photo, b: Photo) => b.timestamp - a.timestamp)
-
-        console.log('Valid photos:', validPhotos)
         setPhotos(validPhotos)
-
-        // Update localStorage with cleaned data
         if (validPhotos.length !== parsedPhotos.length) {
           localStorage.setItem('bee-camera-photos', JSON.stringify(validPhotos))
         }
@@ -53,18 +41,25 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ onClose }): JSX.Element => 
   const handleMouseDown = (e: React.MouseEvent): void => {
     if (e.target instanceof HTMLElement && e.target.closest('.window-header')) {
       setIsDragging(true)
-      const rect = e.currentTarget.getBoundingClientRect()
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      })
+      const rect = windowRef.current?.getBoundingClientRect()
+      if (rect) {
+        setDragOffset({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        })
+      }
     }
   }
 
   const handleMouseMove = (e: MouseEvent): void => {
-    if (isDragging) {
-      const newX = e.clientX - dragOffset.x
-      const newY = e.clientY - dragOffset.y
+    if (isDragging && windowRef.current) {
+      const rect = windowRef.current.getBoundingClientRect()
+      const maxX = window.innerWidth - rect.width
+      const maxY = window.innerHeight - rect.height
+
+      const newX = Math.min(Math.max(0, e.clientX - dragOffset.x), maxX)
+      const newY = Math.min(Math.max(0, e.clientY - dragOffset.y), maxY)
+
       setPosition({ x: newX, y: newY })
     }
   }
@@ -78,7 +73,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ onClose }): JSX.Element => 
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleMouseUp)
     }
-    return () => {
+    return (): void => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
@@ -93,8 +88,9 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ onClose }): JSX.Element => 
 
   return (
     <div
+      ref={windowRef}
       className={`fixed bg-yellow-100 z-20 flex flex-col rounded-lg shadow-2xl border-2 border-black transition-all duration-200 ${
-        isExpanded ? 'inset-4' : 'w-3/4 h-3/4'
+        isExpanded ? 'inset-4' : 'w-1/2 h-2/3'
       }`}
       style={{
         transform: isExpanded ? 'none' : `translate(${position.x}px, ${position.y}px)`,
@@ -126,22 +122,19 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ onClose }): JSX.Element => 
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {photos.map((photo) => {
-              console.log('Rendering photo:', photo)
-              return (
-                <img
-                  key={photo.id}
-                  className="relative group cursor-pointer w-full h-48 object-cover rounded-lg border-2 border-black"
-                  src={photo.url}
-                  alt={`Photo taken at ${new Date(photo.timestamp).toLocaleString()}`}
-                  onClick={() => setSelectedPhoto(photo)}
-                  onError={(e) => {
-                    console.error('Failed to load image:', photo.url)
-                    e.currentTarget.src = 'https://via.placeholder.com/300x200?text=Failed+to+load'
-                  }}
-                />
-              )
-            })}
+            {photos.map((photo) => (
+              <img
+                key={photo.id}
+                className="relative group cursor-pointer w-full h-48 object-cover rounded-lg border-2 border-black"
+                src={photo.url}
+                alt={`Photo taken at ${new Date(photo.timestamp).toLocaleString()}`}
+                onClick={() => setSelectedPhoto(photo)}
+                onError={(e) => {
+                  console.error('Failed to load image:', photo.url)
+                  e.currentTarget.src = 'https://via.placeholder.com/300x200?text=Failed+to+load'
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -149,7 +142,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ onClose }): JSX.Element => 
       {/* Photo Preview Modal */}
       {selectedPhoto && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 max-w-4xl w-full mx-4">
+          <div className="bg-white rounded-lg p-4 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="relative">
               <img
                 src={selectedPhoto.url}

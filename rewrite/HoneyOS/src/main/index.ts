@@ -1,74 +1,47 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import { app, ipcMain } from 'electron'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { exec } from 'child_process'
 
-function createWindow(): void {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+function openInGoogleChrome(url: string): void {
+  const chromePaths: { [key: string]: string } = {
+    win32: '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"',
+    darwin: '/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome',
+    linux: 'google-chrome' // or 'chromium-browser' depending on the system
+  }
+
+  const chromePath = chromePaths[process.platform]
+
+  exec(`${chromePath} "${url}"`, (error) => {
+    if (error) {
+      console.error('Failed to launch Google Chrome:', error)
     }
   })
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
+  // Set app user model ID (needed for Windows notifications, taskbar grouping, etc.)
   electronApp.setAppUserModelId('com.electron')
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  // Open your app in Google Chrome
+  openInGoogleChrome('http://localhost:5174/')
+
+  // Watch for developer shortcuts (like F12)
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
+  // Example IPC listener
   ipcMain.on('ping', () => console.log('pong'))
 
-  createWindow()
-
+  // macOS specific behavior
   app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    // If no windows are open, do nothing (since we're not creating windows)
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

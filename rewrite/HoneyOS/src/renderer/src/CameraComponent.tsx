@@ -39,42 +39,48 @@ const CameraComponent: React.FC<CameraComponentProps> = ({ onClose }): JSX.Eleme
     }
   }, [])
 
-  const getVideo = (): void => {
-    navigator.mediaDevices
-      .getUserMedia({
-        video: { width: { ideal: window.innerWidth }, height: { ideal: window.innerHeight } }
+  const getVideo = async (): Promise<void> => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const videoDevices = devices.filter((device) => device.kind === 'videoinput')
+
+      // Prefer the first non-OBS camera
+      const preferredDevice =
+        videoDevices.find((device) => !device.label.toLowerCase().includes('obs')) ||
+        videoDevices[0]
+
+      if (!preferredDevice) {
+        console.error('No video input devices found.')
+        return
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: preferredDevice.deviceId }
       })
-      .then((stream) => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play()
-        }
-      })
-      .catch((err) => {
-        console.error('Error getting video stream:', err)
-      })
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+
+      console.log('🎥 Using device:', preferredDevice.label)
+    } catch (err) {
+      console.error('Error accessing camera:', err)
+    }
   }
 
   const uploadToCloudinary = async (base64Image: string): Promise<string> => {
     try {
-      // Convert base64 string to Blob directly
       const base64Data = base64Image.split(',')[1] // Remove the data URL prefix
       const byteCharacters = atob(base64Data)
-      const byteArrays = []
+      const byteNumbers = new Array(byteCharacters.length)
 
-      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-        const slice = byteCharacters.slice(offset, offset + 512)
-        const byteNumbers = new Array(slice.length)
-
-        for (let i = 0; i < slice.length; i++) {
-          byteNumbers[i] = slice.charCodeAt(i)
-        }
-
-        const byteArray = new Uint8Array(byteNumbers)
-        byteArrays.push(byteArray)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
       }
 
-      const blob = new Blob(byteArrays, { type: 'image/jpeg' })
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'image/jpeg' })
 
       // Prepare form data
       const formData = new FormData()
@@ -191,6 +197,29 @@ const CameraComponent: React.FC<CameraComponentProps> = ({ onClose }): JSX.Eleme
   }, [])
 
   useEffect(() => {
+    const handleCameraAction = (event: CustomEvent): void => {
+      const { action } = event.detail
+      switch (action) {
+        case 'takePhoto':
+          if (!hasPhoto && !isUploading) {
+            takePhoto()
+          }
+          break
+        case 'retakePhoto':
+          if (hasPhoto && !isUploading) {
+            closePhoto()
+          }
+          break
+      }
+    }
+
+    window.addEventListener('camera-action', handleCameraAction as EventListener)
+    return () => {
+      window.removeEventListener('camera-action', handleCameraAction as EventListener)
+    }
+  }, [hasPhoto, isUploading])
+
+  useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleMouseUp)
@@ -205,7 +234,7 @@ const CameraComponent: React.FC<CameraComponentProps> = ({ onClose }): JSX.Eleme
     <div
       ref={windowRef}
       className={`fixed bg-black z-30 flex flex-col rounded-lg shadow-2xl border-2 border-yellow-500 transition-all duration-200 ${
-        isExpanded ? 'inset-4' : 'w-3/4 h-3/4'
+        isExpanded ? 'inset-4' : 'w-1/2 h-2/3'
       }`}
       style={{
         transform: isExpanded ? 'none' : `translate(${position.x}px, ${position.y}px)`,
@@ -228,18 +257,21 @@ const CameraComponent: React.FC<CameraComponentProps> = ({ onClose }): JSX.Eleme
         </div>
       </div>
 
-      <div className="relative flex-grow flex items-center justify-center">
+      <div className="relative flex-grow flex items-center justify-center bg-black overflow-hidden">
         <video
           ref={videoRef}
           className={`absolute inset-0 w-full h-full object-cover ${hasPhoto ? 'hidden' : ''}`}
+          autoPlay
+          playsInline
         ></video>
         <canvas
           ref={photoRef}
           className={`absolute inset-0 w-full h-full object-contain ${hasPhoto ? '' : 'hidden'}`}
+          style={{ maxWidth: '100%', maxHeight: '100%' }}
         ></canvas>
 
         {hasPhoto ? (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4 z-10">
             <button
               onClick={closePhoto}
               className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
@@ -251,7 +283,7 @@ const CameraComponent: React.FC<CameraComponentProps> = ({ onClose }): JSX.Eleme
         ) : (
           <button
             onClick={takePhoto}
-            className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+            className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors z-10"
             disabled={isUploading}
           >
             {isUploading ? 'Uploading...' : 'Take Photo'}

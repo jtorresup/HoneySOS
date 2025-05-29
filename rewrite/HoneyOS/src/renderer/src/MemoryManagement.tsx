@@ -89,7 +89,7 @@ export default function MemoryManagement({ onClose }: MemoryManagementProps): JS
   }
 
   // Add a new process
-  const addProcess = () => {
+  const addProcess = (): void => {
     const burstTime = Math.floor(Math.random() * 10) + 1
     const memoryRequired = Math.floor(Math.random() * 8) + 1 // 1-8 memory blocks
     const arrivalTime = currentTime
@@ -108,15 +108,10 @@ export default function MemoryManagement({ onClose }: MemoryManagementProps): JS
     }
 
     setProcesses((prevProcesses) => [...prevProcesses, newProcess])
-    setNextProcessId(nextProcessId + 1)
+    setNextProcessId((prev) => prev + 1)
 
     // Attempt to allocate memory for the new process
     allocateMemory(newProcess)
-
-    // Start the simulation if it's not already running
-    if (!isRunning) {
-      setIsRunning(true)
-    }
   }
 
   // Allocate memory for a process using First-Fit algorithm
@@ -392,6 +387,45 @@ export default function MemoryManagement({ onClose }: MemoryManagementProps): JS
       window.removeEventListener('mouseup', handleMouseUp)
     }
   }, [isDragging])
+
+  // Add event listeners for memory actions
+  useEffect(() => {
+    const handleMemoryAction = (event: CustomEvent): void => {
+      const { action, algorithm } = event.detail
+
+      switch (action) {
+        case 'addProcess':
+          addProcess()
+          break
+        case 'setAlgorithm':
+          if (algorithm) {
+            setSelectedAlgorithm(algorithm as SchedulingAlgorithm)
+          }
+          break
+        case 'startSimulation':
+          if (!isRunning) {
+            setIsRunning(true)
+          }
+          break
+        case 'stopSimulation':
+          if (isRunning) {
+            setIsRunning(false)
+          }
+          break
+        case 'resetSimulation':
+          resetSimulation()
+          break
+      }
+    }
+
+    // Add event listener for memory actions
+    window.addEventListener('memory-action', handleMemoryAction as EventListener)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('memory-action', handleMemoryAction as EventListener)
+    }
+  }, [isRunning, selectedAlgorithm, currentTime, processes, memoryBlocks, nextProcessId])
 
   return (
     <div

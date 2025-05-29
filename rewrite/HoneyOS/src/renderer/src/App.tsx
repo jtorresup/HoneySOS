@@ -50,93 +50,466 @@ function App(): JSX.Element {
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false)
   const [isTicTacToeOpen, setIsTicTacToeOpen] = useState(false)
   const [isTicTacToeHover, setIsTicTacToeHover] = useState(false)
-
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const isRecognitionActiveRef = useRef(false)
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [response, setResponse] = useState('')
+  const [liveTranscript, setLiveTranscript] = useState('')
+  const recognitionRef = useRef(null)
+  const showNoteManagerRef = useRef(showNoteManager)
+  const isCameraOpenRef = useRef(isCameraOpen)
+  const isMemoryOpenRef = useRef(isMemoryOpen)
+  const isReplacementOpenRef = useRef(isReplacementOpen)
+  const isNotepadOpenRef = useRef(isNotepadOpen)
+  const isPhotoGalleryOpenRef = useRef(isPhotoGalleryOpen)
+  const isTicTacToeOpenRef = useRef(isTicTacToeOpen)
 
   useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    const synth = window.speechSynthesis
+    showNoteManagerRef.current = showNoteManager
+  }, [showNoteManager])
+
+  useEffect(() => {
+    isCameraOpenRef.current = isCameraOpen
+  }, [isCameraOpen])
+
+  useEffect(() => {
+    isMemoryOpenRef.current = isMemoryOpen
+  }, [isMemoryOpen])
+
+  useEffect(() => {
+    isReplacementOpenRef.current = isReplacementOpen
+  }, [isReplacementOpen])
+
+  useEffect(() => {
+    isNotepadOpenRef.current = isNotepadOpen
+  }, [isNotepadOpen])
+
+  useEffect(() => {
+    isPhotoGalleryOpenRef.current = isPhotoGalleryOpen
+  }, [isPhotoGalleryOpen])
+
+  useEffect(() => {
+    isTicTacToeOpenRef.current = isTicTacToeOpen
+  }, [isTicTacToeOpen])
+
+  const handleCommand = (text: string): void => {
+    const command = text.toLowerCase().trim()
+
+    // Greeting commands
+    if (command.includes('hello honey')) {
+      console.log('Command matched: hello honey')
+      respond('Hello! How can I help you today?')
+      return
+    }
+
+    // Memory Management commands
+    if (isMemoryOpenRef.current) {
+      // Process add command
+      if (command.includes('please add process')) {
+        console.log('Command matched: add process')
+        const event = new CustomEvent('memory-action', { detail: { action: 'addProcess' } })
+        window.dispatchEvent(event)
+        respond('Adding a new process')
+        return
+      }
+
+      // Algorithm selection commands
+      if (command.includes('please set mode first come')) {
+        console.log('Command matched: set mode FCFS')
+        const event = new CustomEvent('memory-action', {
+          detail: { action: 'setAlgorithm', algorithm: 'FCFS' }
+        })
+        window.dispatchEvent(event)
+        respond('Switching to FCFS mode')
+        return
+      }
+      if (command.includes('please set mode short job')) {
+        console.log('Command matched: set mode SJF')
+        const event = new CustomEvent('memory-action', {
+          detail: { action: 'setAlgorithm', algorithm: 'SJF' }
+        })
+        window.dispatchEvent(event)
+        respond('Switching to SJF mode')
+        return
+      }
+      if (command.includes('please set mode priority')) {
+        console.log('Command matched: set mode Priority')
+        const event = new CustomEvent('memory-action', {
+          detail: { action: 'setAlgorithm', algorithm: 'PRIORITY' }
+        })
+        window.dispatchEvent(event)
+        respond('Switching to Priority mode')
+        return
+      }
+      if (command.includes('please set mode round robin')) {
+        console.log('Command matched: set mode Round Robin')
+        const event = new CustomEvent('memory-action', {
+          detail: { action: 'setAlgorithm', algorithm: 'RR' }
+        })
+        window.dispatchEvent(event)
+        respond('Switching to Round Robin mode')
+        return
+      }
+
+      // Control commands
+      if (command.includes('please start simulation')) {
+        console.log('Command matched: start simulation')
+        const event = new CustomEvent('memory-action', { detail: { action: 'startSimulation' } })
+        window.dispatchEvent(event)
+        respond('Starting simulation')
+        return
+      }
+      if (command.includes('please stop simulation')) {
+        console.log('Command matched: stop simulation')
+        const event = new CustomEvent('memory-action', { detail: { action: 'stopSimulation' } })
+        window.dispatchEvent(event)
+        respond('Stopping simulation')
+        return
+      }
+      if (command.includes('please reset simulation')) {
+        console.log('Command matched: reset simulation')
+        const event = new CustomEvent('memory-action', { detail: { action: 'resetSimulation' } })
+        window.dispatchEvent(event)
+        respond('Resetting simulation')
+        return
+      }
+    }
+
+    // Camera commands
+    if (isCameraOpenRef.current) {
+      if (command.includes('please take photo') || command.includes('please take picture')) {
+        console.log('Command matched: take photo')
+        const event = new CustomEvent('camera-action', { detail: { action: 'takePhoto' } })
+        window.dispatchEvent(event)
+        respond('Taking a photo')
+        return
+      }
+      if (command.includes('please retake') || command.includes('please take another')) {
+        console.log('Command matched: retake photo')
+        const event = new CustomEvent('camera-action', { detail: { action: 'retakePhoto' } })
+        window.dispatchEvent(event)
+        respond('Retaking the photo')
+        return
+      }
+    }
+
+    // Notepad commands
+    if (isNotepadOpenRef.current) {
+      if (command.includes('please save note')) {
+        console.log('Command matched: save note')
+        const event = new CustomEvent('notepad-action', { detail: { action: 'saveNote' } })
+        window.dispatchEvent(event)
+        respond('Saving note')
+        return
+      }
+      if (command.includes('please add note') || command.includes('please create new note')) {
+        console.log('Command matched: add note')
+        const event = new CustomEvent('notepad-action', { detail: { action: 'addNote' } })
+        window.dispatchEvent(event)
+        respond('Creating new note')
+        return
+      }
+      if (command.includes('please delete note')) {
+        console.log('Command matched: delete note')
+        const event = new CustomEvent('notepad-action', { detail: { action: 'deleteNote' } })
+        window.dispatchEvent(event)
+        respond('Deleting note')
+        return
+      }
+    }
+
+    // Replacement Algorithm commands
+    if (isReplacementOpenRef.current) {
+      if (command.includes('please set mode')) {
+        if (command.includes('first come')) {
+          console.log('Command matched: set mode FIFO')
+          const event = new CustomEvent('replacement-action', {
+            detail: { action: 'setAlgorithm', algorithm: 'FIFO' }
+          })
+          window.dispatchEvent(event)
+          respond('Setting FIFO mode')
+          return
+        }
+        if (command.includes('lru')) {
+          console.log('Command matched: set mode LRU')
+          const event = new CustomEvent('replacement-action', {
+            detail: { action: 'setAlgorithm', algorithm: 'LRU' }
+          })
+          window.dispatchEvent(event)
+          respond('Setting LRU mode')
+          return
+        }
+        if (command.includes('opt')) {
+          console.log('Command matched: set mode OPT')
+          const event = new CustomEvent('replacement-action', {
+            detail: { action: 'setAlgorithm', algorithm: 'OPT' }
+          })
+          window.dispatchEvent(event)
+          respond('Setting OPT mode')
+          return
+        }
+        if (command.includes('lfu')) {
+          console.log('Command matched: set mode LFU')
+          const event = new CustomEvent('replacement-action', {
+            detail: { action: 'setAlgorithm', algorithm: 'LFU' }
+          })
+          window.dispatchEvent(event)
+          respond('Setting LFU mode')
+          return
+        }
+      }
+      if (command.includes('please generate reference')) {
+        console.log('Command matched: generate reference')
+        const event = new CustomEvent('replacement-action', {
+          detail: { action: 'generateReference' }
+        })
+        window.dispatchEvent(event)
+        respond('Generating new reference string')
+        return
+      }
+      if (command.includes('please start simulation')) {
+        console.log('Command matched: start simulation')
+        const event = new CustomEvent('replacement-action', {
+          detail: { action: 'startSimulation' }
+        })
+        window.dispatchEvent(event)
+        respond('Starting simulation')
+        return
+      }
+      if (command.includes('please stop simulation')) {
+        console.log('Command matched: stop simulation')
+        const event = new CustomEvent('replacement-action', {
+          detail: { action: 'stopSimulation' }
+        })
+        window.dispatchEvent(event)
+        respond('Stopping simulation')
+        return
+      }
+      if (command.includes('please reset simulation')) {
+        console.log('Command matched: reset simulation')
+        const event = new CustomEvent('replacement-action', {
+          detail: { action: 'resetSimulation' }
+        })
+        window.dispatchEvent(event)
+        respond('Resetting simulation')
+        return
+      }
+    }
+
+    // File Manager commands
+    if (showNoteManagerRef.current) {
+      if (command.includes('please create new note') || command.includes('please add new note')) {
+        console.log('Command matched: create note')
+        const event = new CustomEvent('file-manager-action', {
+          detail: { action: 'createNote' }
+        })
+        window.dispatchEvent(event)
+        respond('Creating a new note')
+        return
+      }
+      if (command.includes('please open note')) {
+        const match = command.match(/please open note(?: called)? (.+)/)
+        const noteTitle = match?.[1]?.trim()
+        console.log('Command matched: open note, title:', noteTitle)
+        if (noteTitle) {
+          const event = new CustomEvent('file-manager-action', {
+            detail: { action: 'openNote', title: noteTitle }
+          })
+          window.dispatchEvent(event)
+          respond(`Opening note: ${noteTitle}`)
+        } else {
+          respond('Please specify which note to open. For example: "please open note my note"')
+        }
+        return
+      }
+      if (command.includes('please delete note')) {
+        const noteTitle = command.split('please delete note')[1]?.trim()
+        console.log('Command matched: delete note, title:', noteTitle)
+        if (noteTitle) {
+          const event = new CustomEvent('file-manager-action', {
+            detail: { action: 'deleteNote', title: noteTitle }
+          })
+          window.dispatchEvent(event)
+          respond(`Deleting note: ${noteTitle}`)
+        } else {
+          respond('Please specify which note to delete. For example: "please delete note my note"')
+        }
+        return
+      }
+    }
+
+    // Window opening commands
+    if (command.includes('please open')) {
+      if (command.includes('file manager')) {
+        console.log('Command matched: open file manager')
+        handleOpenFileManager()
+        respond('Opening file manager')
+      } else if (command.includes('notepad')) {
+        console.log('Command matched: open notepad')
+        handleOpenNotepad()
+        respond('Opening notepad')
+      } else if (command.includes('camera')) {
+        console.log('Command matched: open camera')
+        handleOpenCamera()
+        respond('Opening camera')
+      } else if (command.includes('memory')) {
+        console.log('Command matched: open memory')
+        handleOpenMemory()
+        respond('Opening memory management')
+      } else if (command.includes('replacement')) {
+        console.log('Command matched: open replacement')
+        handleOpenReplacement()
+        respond('Opening replacement algorithm')
+      } else if (command.includes('photo gallery')) {
+        console.log('Command matched: open photo gallery')
+        handleOpenPhotoGallery()
+        respond('Opening photo gallery')
+      } else if (command.includes('game')) {
+        console.log('Command matched: open game')
+        handleOpenTicTacToe()
+        respond('Opening tic tac toe game')
+      }
+      return
+    }
+
+    // Window closing commands
+    if (command.includes('please close')) {
+      if (command.includes('file manager')) {
+        console.log('Command matched: close file manager')
+        setShowNoteManager(false)
+        respond('Closing file manager')
+      } else if (command.includes('notepad')) {
+        console.log('Command matched: close notepad')
+        setIsNotepadOpen(false)
+        respond('Closing notepad')
+      } else if (command.includes('camera')) {
+        console.log('Command matched: close camera')
+        setIsCameraOpen(false)
+        respond('Closing camera')
+      } else if (command.includes('memory')) {
+        console.log('Command matched: close memory')
+        setIsMemoryOpen(false)
+        respond('Closing memory management')
+      } else if (command.includes('replacement')) {
+        console.log('Command matched: close replacement')
+        setIsReplacementOpen(false)
+        respond('Closing replacement algorithm')
+      } else if (command.includes('photo gallery')) {
+        console.log('Command matched: close photo gallery')
+        setIsPhotoGalleryOpen(false)
+        respond('Closing photo gallery')
+      } else if (command.includes('game')) {
+        console.log('Command matched: close game')
+        setIsTicTacToeOpen(false)
+        respond('Closing tic tac toe game')
+      }
+      return
+    }
+
+    // Other commands
+    if (command.includes('how are you')) {
+      console.log('Command matched: how are you')
+      respond("I'm doing well, thank you for asking!")
+    } else if (command.includes('tell me a joke')) {
+      console.log('Command matched: tell me a joke')
+      respond("Why don't scientists trust atoms? Because they make up everything!")
+    } else if (command.includes('stop listening')) {
+      console.log('Command matched: stop listening')
+      respond('Okay, stopping voice recognition')
+      stopListening()
+    } else if (command.includes('what can you do')) {
+      console.log('Command matched: what can you do')
+      respond(
+        'I can help you with file management. When the file manager is open, try: ' +
+          '"please create note" to create a new note, ' +
+          '"please open note [filename]" to open a specific note, ' +
+          '"please delete note [filename]" to delete a note. ' +
+          'I can also help you open and close windows, tell jokes, and have a conversation. ' +
+          'Just say "hello honey" to start!'
+      )
+    } else {
+      console.log('No matching command found for:', command)
+    }
+  }
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 
     if (!SpeechRecognition) {
-      console.warn('SpeechRecognition API not supported')
+      alert('Your browser does not support Speech Recognition.')
       return
     }
 
     const recognition = new SpeechRecognition()
-    recognitionRef.current = recognition
     recognition.continuous = true
+    recognition.interimResults = true
     recognition.lang = 'en-US'
-    recognition.interimResults = false
 
-    let isActivated = false
+    recognition.onresult = (event) => {
+      let interimTranscript = ''
+      let finalTranscript = ''
 
-    const speak = (text: string) => {
-      const utterance = new SpeechSynthesisUtterance(text)
-      synth.speak(utterance)
-    }
-
-    recognition.onstart = () => {
-      isRecognitionActiveRef.current = true
-      console.log('Speech recognition started')
-    }
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase()
-      console.log('Heard:', transcript)
-
-      if (!isActivated && transcript.includes('hello honey')) {
-        isActivated = true
-        speak('What can I do for you today?')
-        return
-      }
-
-      if (isActivated) {
-        if (transcript.includes('please open notepad')) {
-          setSelectedNote(null)
-          setIsNotepadOpen(true)
-          speak('Opening notepad')
-        } else if (transcript.includes('please open file manager')) {
-          setShowNoteManager(true)
-          speak('Opening file manager')
-        } else if (transcript.includes('please close notepad')) {
-          setIsNotepadOpen(false)
-          speak('Closing notepad')
-        } else if (transcript.includes('please close file manager')) {
-          setShowNoteManager(false)
-          speak('Closing file manager')
-        } else if (transcript.includes("i'm mad") || transcript.includes('i am mad')) {
-          speak("I'm sorry for being useless. I will try to be better.")
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const text = event.results[i][0].transcript.toLowerCase()
+        if (event.results[i].isFinal) {
+          finalTranscript += text + ' '
+          handleCommand(text)
         } else {
-          speak("I didn't understand that command. Please try again.")
+          interimTranscript += text
         }
-
-        isActivated = false
       }
-    }
 
-    recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
-      console.error('Speech recognition error', e)
+      // Show interim + final together
+      setTranscript((prev) => prev + finalTranscript)
+      setLiveTranscript(interimTranscript) // ⬅️ Optional: use this for live feedback
     }
 
     recognition.onend = () => {
-      isRecognitionActiveRef.current = false
+      if (isListening) {
+        setTimeout(() => recognition.start(), 500) // slight buffer
+      }
     }
 
-    return () => {
-      recognition.stop()
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error)
     }
-  }, [])
 
-  const startListening = () => {
-    const recognition = recognitionRef.current
-    if (recognition && !isRecognitionActiveRef.current) {
+    recognitionRef.current = recognition
+  }, [handleCommand, showNoteManager])
+
+  const respond = (message: string): void => {
+    setResponse(message)
+    const utterance = new SpeechSynthesisUtterance(message)
+    utterance.lang = 'en-US'
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const startListening = (): void => {
+    if (recognitionRef.current && !isListening) {
       try {
-        recognition.start()
+        recognitionRef.current.start()
+        setIsListening(true)
       } catch (error) {
         console.error('Failed to start recognition:', error)
       }
+    }
+  }
+
+  const stopListening = (): void => {
+    if (recognitionRef.current && isListening) {
+      try {
+        recognitionRef.current.stop()
+        setIsListening(false)
+      } catch (error) {
+        console.error('Failed to stop recognition:', error)
+      }
+    }
+  }
+
+  const toggleListening = (): void => {
+    if (isListening) {
+      stopListening()
+    } else {
+      startListening()
     }
   }
 
@@ -166,28 +539,29 @@ function App(): JSX.Element {
   }
 
   // Add handlers for opening windows
-  const handleOpenNotepad = (): void => {
+  const handleOpenNotepad = () => {
     setSelectedNote(null)
     setIsNotepadOpen(true)
     setActiveWindow('notepad')
   }
 
-  const handleOpenFileManager = (): void => {
+  const handleOpenFileManager = () => {
     setShowNoteManager(true)
     setActiveWindow('fileManager')
+    console.log(showNoteManager, 'changed')
   }
 
-  const handleOpenCamera = (): void => {
+  const handleOpenCamera = () => {
     setIsCameraOpen(true)
     setActiveWindow('camera')
   }
 
-  const handleOpenMemory = (): void => {
+  const handleOpenMemory = () => {
     setIsMemoryOpen(true)
     setActiveWindow('memory')
   }
 
-  const handleOpenReplacement = (): void => {
+  const handleOpenReplacement = () => {
     setIsReplacementOpen(true)
     setActiveWindow('replacement')
   }
@@ -199,12 +573,12 @@ function App(): JSX.Element {
     setActiveWindow('notepad')
   }
 
-  const handleOpenPhotoGallery = (): void => {
+  const handleOpenPhotoGallery = () => {
     setIsPhotoGalleryOpen(true)
     setActiveWindow('photoGallery')
   }
 
-  const handleOpenTicTacToe = (): void => {
+  const handleOpenTicTacToe = () => {
     setIsTicTacToeOpen(true)
     setActiveWindow('ticTacToe')
   }
@@ -284,8 +658,8 @@ function App(): JSX.Element {
           </div>
 
           <div
-            className="flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 transition-all duration-300 w-16 h-16"
-            onClick={startListening}
+            className={`flex flex-col items-center justify-center cursor-pointer rounded-full hover:bg-black/20 ${isListening ? 'bg-green-500/20' : ''} transition-all duration-300 w-16 h-16`}
+            onClick={toggleListening}
           >
             <img src={micIcon} alt="Mic Icon" className="w-8 h-8" />
           </div>
